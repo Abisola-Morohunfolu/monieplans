@@ -1,19 +1,12 @@
-import { Inject, Injectable } from '@nestjs/common';
-import { or, eq, isNull } from 'drizzle-orm';
-import { NodePgDatabase } from 'drizzle-orm/node-postgres';
-import { DRIZZLE } from '../database/database.provider';
-import * as schema from '../database/schema';
+import { Injectable } from '@nestjs/common';
+import { CategoriesRepository } from './categories.repository';
 
 @Injectable()
 export class CategoriesService {
-  constructor(@Inject(DRIZZLE) private readonly db: NodePgDatabase<typeof schema>) {}
+  constructor(private readonly categoriesRepository: CategoriesRepository) {}
 
   findAll(userId: string) {
-    return this.db
-      .select()
-      .from(schema.categories)
-      .where(
-        or(isNull(schema.categories.userId), eq(schema.categories.userId, userId)),
-      );
+    return this.categoriesRepository.findAll(userId);
   }
+
 }
