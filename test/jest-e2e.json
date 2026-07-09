@@ -1,0 +1,14 @@
+{
+  "moduleFileExtensions": ["js", "json", "ts"],
+  "rootDir": ".",
+  "testEnvironment": "node",
+  "testRegex": ".e2e-spec.ts$",
+  "transform": {
+    "^.+\\.(t|j)s$": "ts-jest"
+  },
+  "moduleNameMapper": {
+    "^better-auth$": "<rootDir>/mocks/better-auth.stub.ts",
+    "^better-auth/node$": "<rootDir>/mocks/better-auth.stub.ts",
+    "^better-auth/adapters/drizzle$": "<rootDir>/mocks/better-auth.stub.ts"
+  }
+}
