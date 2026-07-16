@@ -1,10 +1,14 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { CreateBudgetDto } from './dto/create-budget.dto';
 import { BudgetRepository } from './budget.repository';
+import { GoalsService } from '../goals/goals.service';
 
 @Injectable()
 export class BudgetService {
-  constructor(private readonly budgetRepository: BudgetRepository) {}
+  constructor(
+    private readonly budgetRepository: BudgetRepository,
+    private readonly goalsService: GoalsService,
+  ) {}
 
   async create(userId: string, dto: CreateBudgetDto) {
     return this.budgetRepository.transaction(async (tx) => {
@@ -75,6 +79,13 @@ export class BudgetService {
       const totalAmount = parseFloat(
         updated.monthlyBudgetCapAmount || updated.monthlyIncomeAmount || '0',
       );
+
+      // Generate goal reservations (upsert) for this period, using the same tx
+      await this.goalsService.reserveInBudget(userId, id, totalAmount, tx);
+
+      // Fetch total reserved amount (within same tx so it's consistent)
+      const reservedAmount = await this.goalsService.getTotalReservedAmount(id, tx);
+
       await this.generateWeeklyAllocations(
         tx,
         userId,
@@ -82,6 +93,8 @@ export class BudgetService {
         updated.periodStartDate,
         updated.periodEndDate,
         totalAmount,
+        'equal_split',
+        reservedAmount,
       );
 
       return updated;
@@ -105,7 +118,11 @@ export class BudgetService {
     endDateStr: string,
     totalAmount: number,
     strategy: 'equal_split' | 'calendar_aware' = 'equal_split',
+    reservedAmount = 0,
   ) {
+    // Deduct goal reservations before splitting — weekly allocations cover
+    // only the discretionary portion of the budget.
+    const spendableAmount = Math.max(0, totalAmount - reservedAmount);
     const start = new Date(startDateStr);
     const end = new Date(endDateStr);
 
@@ -145,13 +162,13 @@ export class BudgetService {
       let plannedAmount = 0;
 
       if (strategy === 'calendar_aware') {
-        plannedAmount = Math.round(totalAmount * (week.days / totalDays) * 100) / 100;
+        plannedAmount = Math.round(spendableAmount * (week.days / totalDays) * 100) / 100;
       } else {
-        plannedAmount = Math.round((totalAmount / totalWeeks) * 100) / 100;
+        plannedAmount = Math.round((spendableAmount / totalWeeks) * 100) / 100;
       }
 
       if (i === totalWeeks - 1) {
-        plannedAmount = Math.round((totalAmount - allocatedSum) * 100) / 100;
+        plannedAmount = Math.round((spendableAmount - allocatedSum) * 100) / 100;
       } else {
         allocatedSum += plannedAmount;
       }

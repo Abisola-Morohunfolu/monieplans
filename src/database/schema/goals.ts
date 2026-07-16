@@ -1,4 +1,4 @@
-import { boolean, integer, numeric, pgEnum, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core';
+import { boolean, integer, numeric, pgEnum, pgTable, text, timestamp, unique, uuid } from 'drizzle-orm/pg-core';
 import { user } from './auth';
 import { budgetPeriods } from './budget-periods';
 
@@ -29,18 +29,22 @@ export const savingsGoals = pgTable('savings_goals', {
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
 });
 
-export const goalBudgetReservations = pgTable('goal_budget_reservations', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  budgetPeriodId: uuid('budget_period_id')
-    .notNull()
-    .references(() => budgetPeriods.id, { onDelete: 'cascade' }),
-  goalId: uuid('goal_id')
-    .notNull()
-    .references(() => savingsGoals.id, { onDelete: 'cascade' }),
-  reservedAmount: numeric('reserved_amount', { precision: 15, scale: 2 }).notNull(),
-  recommendedAmount: numeric('recommended_amount', { precision: 15, scale: 2 }),
-  feasibilityStatus: goalFeasibilityEnum('feasibility_status').notNull().default('on_track'),
-  feasibilityReason: text('feasibility_reason'),
-  createdAt: timestamp('created_at').notNull().defaultNow(),
-  updatedAt: timestamp('updated_at').notNull().defaultNow(),
-});
+export const goalBudgetReservations = pgTable(
+  'goal_budget_reservations',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    budgetPeriodId: uuid('budget_period_id')
+      .notNull()
+      .references(() => budgetPeriods.id, { onDelete: 'cascade' }),
+    goalId: uuid('goal_id')
+      .notNull()
+      .references(() => savingsGoals.id, { onDelete: 'cascade' }),
+    reservedAmount: numeric('reserved_amount', { precision: 15, scale: 2 }).notNull(),
+    recommendedAmount: numeric('recommended_amount', { precision: 15, scale: 2 }),
+    feasibilityStatus: goalFeasibilityEnum('feasibility_status').notNull().default('on_track'),
+    feasibilityReason: text('feasibility_reason'),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+    updatedAt: timestamp('updated_at').notNull().defaultNow(),
+  },
+  (t) => [unique().on(t.budgetPeriodId, t.goalId)],
+);

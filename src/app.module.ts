@@ -6,6 +6,7 @@ import { CategoriesModule } from './categories/categories.module';
 import { DatabaseModule } from './database/database.module';
 import { ExpensesModule } from './expenses/expenses.module';
 import { FixedExpensesModule } from './fixed-expenses/fixed-expenses.module';
+import { GoalsModule } from './goals/goals.module';
 import { UsersModule } from './users/users.module';
 
 @Module({
@@ -18,6 +19,7 @@ import { UsersModule } from './users/users.module';
     CategoriesModule,
     ExpensesModule,
     FixedExpensesModule,
+    GoalsModule,
   ],
 })
 export class AppModule {}
