@@ -4002,6 +4002,15 @@ __metadata:
   languageName: node
   linkType: hard
 
+"csv-parser@npm:^3.2.1":
+  version: 3.2.1
+  resolution: "csv-parser@npm:3.2.1"
+  bin:
+    csv-parser: bin/csv-parser
+  checksum: 470ad21c9eba57ef24b56b08b2b7d376724987f3774deaaa32b8553620ee861e31f24ee06b456a33bcae37b8c103c70b2de71e6cf04f4cdb856e90ea56e649c2
+  languageName: node
+  linkType: hard
+
 "debug@npm:^4.1.0, debug@npm:^4.1.1, debug@npm:^4.3.1, debug@npm:^4.3.2, debug@npm:^4.3.7, debug@npm:^4.4.0, debug@npm:^4.4.3":
   version: 4.4.3
   resolution: "debug@npm:4.4.3"
@@ -6539,6 +6548,7 @@ __metadata:
     better-auth: "npm:^1.6.20"
     class-transformer: "npm:^0.5.1"
     class-validator: "npm:^0.15.1"
+    csv-parser: "npm:^3.2.1"
     drizzle-kit: "npm:^0.31.10"
     drizzle-orm: "npm:^0.45.2"
     eslint: "npm:^9.18.0"
