@@ -48,7 +48,7 @@ function ExpensesPage() {
             placeholder="Search expenses..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full bg-bg-lightest dark:bg-dark-2 border border-text-primary/8 rounded-2xl py-2.5 pl-10 pr-4 text-sm focus:outline-none focus:ring-2 focus:ring-sage/30 text-text-primary"
+            className="w-full bg-bg-lightest border border-text-primary/8 rounded-2xl py-2.5 pl-10 pr-4 text-sm focus:outline-none focus:ring-2 focus:ring-sage/30 text-text-primary"
           />
         </div>
       </div>

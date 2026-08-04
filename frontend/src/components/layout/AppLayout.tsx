@@ -22,7 +22,7 @@ export function AppLayout() {
   }
 
   return (
-    <div className="flex h-screen bg-bg-base dark:bg-dark-1 text-text-primary overflow-hidden">
+    <div className="flex h-screen bg-bg-base text-text-primary overflow-hidden">
       <aside className="w-64 glass z-10 relative flex flex-col">
         <div className="p-6">
           <h1 className="font-heading text-2xl font-semibold text-text-primary flex items-center gap-2">

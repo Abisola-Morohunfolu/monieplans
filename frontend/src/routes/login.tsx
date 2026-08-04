@@ -25,7 +25,7 @@ function LoginPage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-bg-base dark:bg-dark-1">
+      <div className="min-h-screen flex items-center justify-center bg-bg-base">
         <div className="card p-8">
           <p className="text-text-secondary">Loading...</p>
         </div>
@@ -54,7 +54,7 @@ function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-bg-base dark:bg-dark-1 p-4 relative overflow-hidden">
+    <div className="min-h-screen flex items-center justify-center bg-bg-base p-4 relative overflow-hidden">
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-sage/15 rounded-full blur-[120px] pointer-events-none" />
       <div className="absolute top-0 right-0 w-[300px] h-[300px] bg-forest/8 rounded-full blur-[80px] pointer-events-none" />
 
