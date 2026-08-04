@@ -29,7 +29,7 @@
     "@vitejs/plugin-react": "^6.0.4",
     "oxlint": "^1.75.0",
     "tailwindcss": "^4.3.3",
-    "typescript": "~6.0.2",
+    "typescript": "^5.7.3",
     "vite": "^8.2.0"
   }
 }
