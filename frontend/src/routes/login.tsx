@@ -1,8 +1,17 @@
-import { createFileRoute, useNavigate } from '@tanstack/react-router'
+import { createFileRoute, useNavigate, useSearch } from '@tanstack/react-router'
 import { useState } from 'react'
-import { signIn } from '../lib/auth'
+import { useAuth } from '../hooks/useAuth'
+
+interface LoginSearch {
+  redirect?: string
+}
 
 export const Route = createFileRoute('/login')({
+  validateSearch: (search: Record<string, unknown>): LoginSearch => {
+    return {
+      redirect: search.redirect as string | undefined,
+    }
+  },
   component: LoginPage,
 })
 
@@ -11,77 +20,90 @@ function LoginPage() {
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const navigate = useNavigate()
+  const { redirect } = useSearch({ from: '/login' })
+  const { isAuthenticated, isLoading, signIn } = useAuth()
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-bg-base dark:bg-dark-1">
+        <div className="card p-8">
+          <p className="text-text-secondary">Loading...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (isAuthenticated) {
+    navigate({ to: redirect || '/dashboard' })
+    return null
+  }
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
     try {
-      // Assuming email/password login is setup on backend
-      const { data, error } = await signIn.email({ email, password })
-      if (error) {
-        setError(error.message || 'Login failed')
+      const { error: signInError } = await signIn.email({ email, password })
+      if (signInError) {
+        setError(signInError.message || 'Login failed')
       } else {
-        navigate({ to: '/dashboard' })
+        navigate({ to: redirect || '/dashboard' })
       }
-    } catch (err: any) {
+    } catch {
       setError('An unexpected error occurred.')
     }
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-900 p-4 relative overflow-hidden">
-      {/* Decorative background blur */}
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-primary/20 rounded-full blur-[120px] pointer-events-none" />
+    <div className="min-h-screen flex items-center justify-center bg-bg-base dark:bg-dark-1 p-4 relative overflow-hidden">
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-sage/15 rounded-full blur-[120px] pointer-events-none" />
+      <div className="absolute top-0 right-0 w-[300px] h-[300px] bg-forest/8 rounded-full blur-[80px] pointer-events-none" />
 
-      <div className="glass-card w-full max-w-md relative z-10 p-8">
+      <div className="card w-full max-w-md relative z-10 p-8">
         <div className="text-center mb-8">
-          <div className="w-12 h-12 rounded-xl bg-primary text-white text-xl font-bold flex items-center justify-center mx-auto mb-4 shadow-lg shadow-primary/30">
+          <div className="w-12 h-12 rounded-2xl bg-sage text-white text-xl font-bold flex items-center justify-center mx-auto mb-4 shadow-lg shadow-sage/25">
             M
           </div>
-          <h2 className="text-2xl font-bold">Welcome back</h2>
-          <p className="text-slate-500 dark:text-slate-400 mt-1">Sign in to your Monieplans account</p>
+          <h2 className="font-heading text-3xl font-medium text-text-primary">Welcome back</h2>
+          <p className="text-text-secondary mt-1">Sign in to your Monieplans account</p>
         </div>
 
         {error && (
-          <div className="p-3 mb-6 bg-red-500/10 border border-red-500/20 text-red-500 rounded-lg text-sm text-center">
+          <div className="p-3 mb-6 bg-rust/10 border border-rust/20 text-rust rounded-xl text-sm text-center">
             {error}
           </div>
         )}
 
         <form onSubmit={handleLogin} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium mb-1">Email</label>
+            <label className="block text-sm font-medium text-text-primary mb-1.5">Email</label>
             <input
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full px-4 py-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white/50 dark:bg-slate-800/50 backdrop-blur-sm focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
+              className="input-field"
               placeholder="you@example.com"
               required
             />
           </div>
           <div>
-            <label className="block text-sm font-medium mb-1">Password</label>
+            <label className="block text-sm font-medium text-text-primary mb-1.5">Password</label>
             <input
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-4 py-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white/50 dark:bg-slate-800/50 backdrop-blur-sm focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
+              className="input-field"
               placeholder="••••••••"
               required
             />
           </div>
-          
-          <button
-            type="submit"
-            className="w-full py-2.5 bg-primary hover:bg-[#922ce0] text-white font-medium rounded-lg shadow-lg shadow-primary/25 transition-all active:scale-[0.98]"
-          >
+
+          <button type="submit" className="btn-primary w-full">
             Sign In
           </button>
         </form>
 
-        <p className="text-center text-sm text-slate-500 mt-6">
-          Don't have an account? <a href="#" className="text-primary hover:underline">Sign up</a>
+        <p className="text-center text-sm text-text-tertiary mt-6">
+          Don't have an account? <a href="#" className="text-sage hover:text-forest transition-colors">Sign up</a>
         </p>
       </div>
     </div>
