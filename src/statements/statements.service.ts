@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { StatementsRepository } from './statements.repository';
 import * as fs from 'fs';
-import * as csv from 'csv-parser';
+import csv = require('csv-parser');
 
 @Injectable()
 export class StatementsService {
@@ -102,10 +102,10 @@ export class StatementsService {
     return new Promise((resolve, reject) => {
       const results: any[] = [];
       fs.createReadStream(filePath)
-        .pipe(csv({ bom: true }))
-        .on('data', (data) => results.push(data))
+        .pipe(csv())
+        .on('data', (data: any) => results.push(data))
         .on('end', () => resolve(results))
-        .on('error', (error) => reject(error));
+        .on('error', (error: Error) => reject(error));
     });
   }
 

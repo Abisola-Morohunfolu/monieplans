@@ -9,7 +9,7 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
   // Mount BetterAuth before NestJS routes — handles /api/auth/* wildcard
-  app.use('/api/auth/*', toNodeHandler(auth.handler));
+  app.use('/api/auth', toNodeHandler(auth.handler));
 
   app.setGlobalPrefix('api');
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
