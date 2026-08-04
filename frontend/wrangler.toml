@@ -1,6 +1,0 @@
-name = "monieplans"
-compatibility_date = "2026-08-04"
-compatibility_flags = ["nodejs_compat"]
-
-[env.production]
-vars = { ENVIRONMENT = "production" }
