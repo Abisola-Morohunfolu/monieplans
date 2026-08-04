@@ -1,20 +1,20 @@
-import { Inject, Injectable, NotFoundException } from '@nestjs/common';
-import { and, desc, eq } from 'drizzle-orm';
-import { NodePgDatabase } from 'drizzle-orm/node-postgres';
-import { DRIZZLE } from '../database/database.provider';
-import * as schema from '../database/schema';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { CreateBudgetDto } from './dto/create-budget.dto';
+import { BudgetRepository } from './budget.repository';
+import { GoalsService } from '../goals/goals.service';
 
 @Injectable()
 export class BudgetService {
-  constructor(@Inject(DRIZZLE) private readonly db: NodePgDatabase<typeof schema>) {}
+  constructor(
+    private readonly budgetRepository: BudgetRepository,
+    private readonly goalsService: GoalsService,
+  ) {}
 
   async create(userId: string, dto: CreateBudgetDto) {
-    return this.db.transaction(async (tx) => {
+    return this.budgetRepository.transaction(async (tx) => {
       const status = dto.activateImmediately ? 'active' : 'draft';
-      const [period] = await tx
-        .insert(schema.budgetPeriods)
-        .values({
+      const period = await this.budgetRepository.createPeriod(
+        {
           userId,
           periodStartDate: dto.periodStartDate,
           periodEndDate: dto.periodEndDate,
@@ -26,8 +26,9 @@ export class BudgetService {
           currency: dto.currency,
           notes: dto.notes,
           status,
-        })
-        .returning();
+        },
+        tx,
+      );
 
       if (dto.activateImmediately) {
         const totalAmount = parseFloat(
@@ -48,30 +49,15 @@ export class BudgetService {
   }
 
   async findActive(userId: string) {
-    const [period] = await this.db
-      .select()
-      .from(schema.budgetPeriods)
-      .where(
-        and(eq(schema.budgetPeriods.userId, userId), eq(schema.budgetPeriods.status, 'active')),
-      )
-      .orderBy(desc(schema.budgetPeriods.periodStartDate))
-      .limit(1);
-    return period ?? null;
+    return this.budgetRepository.findActive(userId);
   }
 
   async findAll(userId: string) {
-    return this.db
-      .select()
-      .from(schema.budgetPeriods)
-      .where(eq(schema.budgetPeriods.userId, userId))
-      .orderBy(desc(schema.budgetPeriods.periodStartDate));
+    return this.budgetRepository.findAll(userId);
   }
 
   async findOne(userId: string, id: string) {
-    const [period] = await this.db
-      .select()
-      .from(schema.budgetPeriods)
-      .where(and(eq(schema.budgetPeriods.userId, userId), eq(schema.budgetPeriods.id, id)));
+    const period = await this.budgetRepository.findOne(userId, id);
     if (!period) throw new NotFoundException('Budget period not found');
     return period;
   }
@@ -82,16 +68,24 @@ export class BudgetService {
       return period;
     }
 
-    return this.db.transaction(async (tx) => {
-      const [updated] = await tx
-        .update(schema.budgetPeriods)
-        .set({ status: 'active', updatedAt: new Date() })
-        .where(and(eq(schema.budgetPeriods.userId, userId), eq(schema.budgetPeriods.id, id)))
-        .returning();
+    return this.budgetRepository.transaction(async (tx) => {
+      const updated = await this.budgetRepository.updatePeriod(
+        userId,
+        id,
+        { status: 'active', updatedAt: new Date() },
+        tx,
+      );
 
       const totalAmount = parseFloat(
         updated.monthlyBudgetCapAmount || updated.monthlyIncomeAmount || '0',
       );
+
+      // Generate goal reservations (upsert) for this period, using the same tx
+      await this.goalsService.reserveInBudget(userId, id, totalAmount, tx);
+
+      // Fetch total reserved amount (within same tx so it's consistent)
+      const reservedAmount = await this.goalsService.getTotalReservedAmount(id, tx);
+
       await this.generateWeeklyAllocations(
         tx,
         userId,
@@ -99,6 +93,8 @@ export class BudgetService {
         updated.periodStartDate,
         updated.periodEndDate,
         totalAmount,
+        'equal_split',
+        reservedAmount,
       );
 
       return updated;
@@ -107,12 +103,11 @@ export class BudgetService {
 
   async lock(userId: string, id: string) {
     await this.findOne(userId, id);
-    const [updated] = await this.db
-      .update(schema.budgetPeriods)
-      .set({ status: 'locked', lockedAt: new Date(), updatedAt: new Date() })
-      .where(and(eq(schema.budgetPeriods.userId, userId), eq(schema.budgetPeriods.id, id)))
-      .returning();
-    return updated;
+    return this.budgetRepository.updatePeriod(
+      userId,
+      id,
+      { status: 'locked', lockedAt: new Date(), updatedAt: new Date() },
+    );
   }
 
   async generateWeeklyAllocations(
@@ -123,7 +118,11 @@ export class BudgetService {
     endDateStr: string,
     totalAmount: number,
     strategy: 'equal_split' | 'calendar_aware' = 'equal_split',
+    reservedAmount = 0,
   ) {
+    // Deduct goal reservations before splitting — weekly allocations cover
+    // only the discretionary portion of the budget.
+    const spendableAmount = Math.max(0, totalAmount - reservedAmount);
     const start = new Date(startDateStr);
     const end = new Date(endDateStr);
 
@@ -163,13 +162,13 @@ export class BudgetService {
       let plannedAmount = 0;
 
       if (strategy === 'calendar_aware') {
-        plannedAmount = Math.round(totalAmount * (week.days / totalDays) * 100) / 100;
+        plannedAmount = Math.round(spendableAmount * (week.days / totalDays) * 100) / 100;
       } else {
-        plannedAmount = Math.round((totalAmount / totalWeeks) * 100) / 100;
+        plannedAmount = Math.round((spendableAmount / totalWeeks) * 100) / 100;
       }
 
       if (i === totalWeeks - 1) {
-        plannedAmount = Math.round((totalAmount - allocatedSum) * 100) / 100;
+        plannedAmount = Math.round((spendableAmount - allocatedSum) * 100) / 100;
       } else {
         allocatedSum += plannedAmount;
       }
@@ -185,9 +184,8 @@ export class BudgetService {
         status = 'completed';
       }
 
-      await tx
-        .insert(schema.weeklyBudgetAllocations)
-        .values({
+      await this.budgetRepository.createWeeklyAllocation(
+        {
           budgetPeriodId,
           userId,
           weekIndex: i,
@@ -200,8 +198,9 @@ export class BudgetService {
           actualSpentAmountCache: '0.00',
           remainingAmountCache: plannedAmount.toFixed(2),
           status,
-        })
-        .onConflictDoNothing();
+        },
+        tx,
+      );
     }
   }
 }

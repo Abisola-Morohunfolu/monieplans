@@ -2068,6 +2068,23 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@nestjs/mapped-types@npm:^2.1.1":
+  version: 2.1.1
+  resolution: "@nestjs/mapped-types@npm:2.1.1"
+  peerDependencies:
+    "@nestjs/common": ^10.0.0 || ^11.0.0
+    class-transformer: ^0.4.0 || ^0.5.0
+    class-validator: ^0.13.0 || ^0.14.0 || ^0.15.0
+    reflect-metadata: ^0.1.12 || ^0.2.0
+  peerDependenciesMeta:
+    class-transformer:
+      optional: true
+    class-validator:
+      optional: true
+  checksum: 985e7232921a7f79338b0247778994afcb1d7e74b14506bddc6996b39ff511f3847b4013b9bbcba66a0b9f370e747e7521e6b22a61dd630cfdead667b5b3c056
+  languageName: node
+  linkType: hard
+
 "@nestjs/platform-express@npm:^11.1.11":
   version: 11.1.27
   resolution: "@nestjs/platform-express@npm:11.1.27"
@@ -3982,6 +3999,15 @@ __metadata:
     shebang-command: "npm:^2.0.0"
     which: "npm:^2.0.1"
   checksum: 053ea8b2135caff68a9e81470e845613e374e7309a47731e81639de3eaeb90c3d01af0e0b44d2ab9d50b43467223b88567dfeb3262db942dc063b9976718ffc1
+  languageName: node
+  linkType: hard
+
+"csv-parser@npm:^3.2.1":
+  version: 3.2.1
+  resolution: "csv-parser@npm:3.2.1"
+  bin:
+    csv-parser: bin/csv-parser
+  checksum: 470ad21c9eba57ef24b56b08b2b7d376724987f3774deaaa32b8553620ee861e31f24ee06b456a33bcae37b8c103c70b2de71e6cf04f4cdb856e90ea56e649c2
   languageName: node
   linkType: hard
 
@@ -6509,6 +6535,7 @@ __metadata:
     "@nestjs/common": "npm:^11.1.11"
     "@nestjs/config": "npm:^4.0.2"
     "@nestjs/core": "npm:^11.1.11"
+    "@nestjs/mapped-types": "npm:^2.1.1"
     "@nestjs/platform-express": "npm:^11.1.11"
     "@nestjs/schematics": "npm:^11.0.0"
     "@nestjs/testing": "npm:^11.0.1"
@@ -6521,6 +6548,7 @@ __metadata:
     better-auth: "npm:^1.6.20"
     class-transformer: "npm:^0.5.1"
     class-validator: "npm:^0.15.1"
+    csv-parser: "npm:^3.2.1"
     drizzle-kit: "npm:^0.31.10"
     drizzle-orm: "npm:^0.45.2"
     eslint: "npm:^9.18.0"

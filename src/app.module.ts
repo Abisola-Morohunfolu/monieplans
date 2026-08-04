@@ -5,7 +5,11 @@ import { BudgetModule } from './budget/budget.module';
 import { CategoriesModule } from './categories/categories.module';
 import { DatabaseModule } from './database/database.module';
 import { ExpensesModule } from './expenses/expenses.module';
+import { FixedExpensesModule } from './fixed-expenses/fixed-expenses.module';
+import { GoalsModule } from './goals/goals.module';
 import { UsersModule } from './users/users.module';
+import { StatementsModule } from './statements/statements.module';
+import { AnalyticsModule } from './analytics/analytics.module';
 
 @Module({
   imports: [
@@ -16,6 +20,10 @@ import { UsersModule } from './users/users.module';
     BudgetModule,
     CategoriesModule,
     ExpensesModule,
+    FixedExpensesModule,
+    GoalsModule,
+    StatementsModule,
+    AnalyticsModule,
   ],
 })
 export class AppModule {}

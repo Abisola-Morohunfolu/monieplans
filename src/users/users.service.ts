@@ -1,8 +1,5 @@
-import { Inject, Injectable } from '@nestjs/common';
-import { eq } from 'drizzle-orm';
-import { NodePgDatabase } from 'drizzle-orm/node-postgres';
-import { DRIZZLE } from '../database/database.provider';
-import * as schema from '../database/schema';
+import { Injectable } from '@nestjs/common';
+import { UsersRepository } from './users.repository';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 
 type BudgetCycleType = 'calendar_month' | 'custom_30_day' | 'custom_31_day';
@@ -10,20 +7,13 @@ type WeekStartDay = 'monday' | 'sunday' | 'saturday';
 
 @Injectable()
 export class UsersService {
-  constructor(@Inject(DRIZZLE) private readonly db: NodePgDatabase<typeof schema>) {}
+  constructor(private readonly usersRepository: UsersRepository) {}
 
   async getProfile(userId: string) {
-    const [profile] = await this.db
-      .select()
-      .from(schema.userProfiles)
-      .where(eq(schema.userProfiles.userId, userId));
+    const profile = await this.usersRepository.findProfileByUserId(userId);
 
     if (!profile) {
-      const [created] = await this.db
-        .insert(schema.userProfiles)
-        .values({ userId })
-        .returning();
-      return created;
+      return this.usersRepository.createProfile(userId);
     }
 
     return profile;
@@ -50,14 +40,6 @@ export class UsersService {
       updatedAt: new Date(),
     };
 
-    const [updated] = await this.db
-      .insert(schema.userProfiles)
-      .values(values)
-      .onConflictDoUpdate({
-        target: schema.userProfiles.userId,
-        set: setValues,
-      })
-      .returning();
-    return updated;
+    return this.usersRepository.upsertProfile(values, setValues);
   }
 }
