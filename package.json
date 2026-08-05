@@ -1,93 +1,49 @@
 {
   "name": "monieplans-api",
-  "version": "0.0.1",
-  "description": "Monieplans backend API",
-  "author": "",
+  "version": "0.1.0",
+  "description": "Monieplans backend API (Cloudflare Workers)",
   "private": true,
   "license": "UNLICENSED",
   "workspaces": [
     "frontend"
   ],
   "scripts": {
-    "build": "nest build",
-    "format": "prettier --write \"src/**/*.ts\" \"../test/**/*.ts\"",
-    "start": "nest start",
-    "start:dev": "nest start --watch",
-    "start:debug": "nest start --debug --watch",
-    "start:prod": "node dist/main",
-    "lint": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix",
-    "test": "jest",
-    "test:watch": "jest --watch",
-    "test:cov": "jest --coverage",
-    "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
-    "test:e2e": "jest --config test/jest-e2e.json",
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
     "db:generate": "drizzle-kit generate",
-    "db:migrate": "drizzle-kit migrate",
-    "db:seed": "ts-node drizzle/seed.ts",
+    "db:migrate:local": "wrangler d1 execute DB --local --file=./drizzle/migrations/0000_messy_layla_miller.sql",
+    "db:migrate:remote": "wrangler d1 execute DB --remote --file=./drizzle/migrations/0000_messy_layla_miller.sql",
+    "db:seed:local": "wrangler d1 execute DB --local --file=./scripts/seed.sql",
+    "db:seed:remote": "wrangler d1 execute DB --remote --file=./scripts/seed.sql",
     "db:studio": "drizzle-kit studio",
-    "docker:up": "docker compose up -d",
-    "docker:down": "docker compose down",
-    "db:setup": "yarn db:generate && yarn db:migrate && yarn db:seed"
+    "lint": "eslint \"src/**/*.ts\" --fix",
+    "format": "prettier --write \"src/**/*.ts\"",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@nestjs/cli": "^11.0.10",
-    "@nestjs/common": "^11.1.11",
-    "@nestjs/config": "^4.0.2",
-    "@nestjs/core": "^11.1.11",
-    "@nestjs/mapped-types": "^2.1.1",
-    "@nestjs/platform-express": "^11.1.11",
+    "@hono/node-server": "^1.13.7",
+    "@llamaindex/llama-cloud": "^2.13.0",
     "better-auth": "^1.6.20",
-    "class-transformer": "^0.5.1",
-    "class-validator": "^0.15.1",
-    "csv-parser": "^3.2.1",
     "drizzle-orm": "^0.45.2",
-    "pg": "^8.22.0",
-    "reflect-metadata": "^0.2.2",
-    "rxjs": "^7.8.1"
+    "hono": "^4.6.14",
+    "zod": "^3.24.1"
   },
   "devDependencies": {
+    "@cloudflare/workers-types": "^4.20250922.0",
     "@eslint/eslintrc": "^3.2.0",
     "@eslint/js": "^9.18.0",
-    "@nestjs/cli": "^11.0.0",
-    "@nestjs/schematics": "^11.0.0",
-    "@nestjs/testing": "^11.0.1",
-    "@types/express": "^5.0.0",
-    "@types/jest": "^30.0.0",
-    "@types/multer": "^2.2.0",
     "@types/node": "^24.0.0",
-    "@types/pg": "^8.20.0",
-    "@types/supertest": "^7.0.0",
     "drizzle-kit": "^0.31.10",
     "eslint": "^9.18.0",
     "eslint-config-prettier": "^10.0.1",
     "eslint-plugin-prettier": "^5.2.2",
     "globals": "^17.0.0",
-    "jest": "^30.0.0",
     "prettier": "^3.4.2",
-    "source-map-support": "^0.5.21",
-    "supertest": "^7.0.0",
-    "ts-jest": "^29.2.5",
-    "ts-loader": "^9.5.2",
-    "ts-node": "^10.9.2",
-    "tsconfig-paths": "^4.2.0",
     "typescript": "^5.7.3",
-    "typescript-eslint": "^8.20.0"
-  },
-  "jest": {
-    "moduleFileExtensions": [
-      "js",
-      "json",
-      "ts"
-    ],
-    "rootDir": "src",
-    "testRegex": ".*\\.spec\\.ts$",
-    "transform": {
-      "^.+\\.(t|j)s$": "ts-jest"
-    },
-    "collectCoverageFrom": [
-      "**/*.(t|j)s"
-    ],
-    "coverageDirectory": "../coverage",
-    "testEnvironment": "node"
+    "typescript-eslint": "^8.20.0",
+    "vitest": "^3.0.4",
+    "wrangler": "^4.6.0"
   }
 }

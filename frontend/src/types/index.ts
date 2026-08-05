@@ -21,12 +21,20 @@ export interface BudgetPeriod {
 
 export interface Expense {
   id: string
-  amount: number
-  description: string
-  categoryId: string
-  categoryName?: string
+  amountCents: number
+  amount?: number
+  description: string | null
+  categoryId: string | null
+  categoryName?: string | null
+  categoryCode?: string | null
   budgetPeriodId: string
-  date: string
+  weeklyBudgetAllocationId?: string | null
+  expenseDate: string
+  date?: string
+  sourceType?: string
+  merchantName?: string | null
+  receiptParseConfidence?: number | null
+  receiptParseStatus?: string
   createdAt: string
   updatedAt?: string
 }
@@ -67,18 +75,31 @@ export interface FixedExpenseTemplate {
 export interface StatementUpload {
   id: string
   fileName: string
-  createdAt: string
-  transactionCount: number
-  status: string
+  uploadStatus: string
+  statementPeriodStart?: string | null
+  statementPeriodEnd?: string | null
+  transactionCount?: number
+  status?: string
+  createdAt?: string
+  uploadedAt?: string
+  processedAt?: string | null
 }
 
 export interface StatementTransaction {
   id: string
   statementUploadId: string
-  amount: number
-  description: string
-  date: string
-  categoryId?: string
+  amountCents: number
+  amount?: number
+  descriptionRaw: string
+  description?: string
+  postedDate: string
+  date?: string
+  direction: string
+  merchantName?: string | null
+  transactionType?: string | null
+  isInternalBookkeeping?: boolean
+  parentTransactionId?: string | null
+  categoryId?: string | null
   createdAt: string
 }
 

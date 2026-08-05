@@ -1,19 +1,19 @@
 {
   "version": "7",
-  "dialect": "postgresql",
+  "dialect": "sqlite",
   "entries": [
     {
       "idx": 0,
-      "version": "7",
-      "when": 1782906672030,
-      "tag": "0000_broad_talos",
+      "version": "6",
+      "when": 1785921095496,
+      "tag": "0000_messy_layla_miller",
       "breakpoints": true
     },
     {
       "idx": 1,
-      "version": "7",
-      "when": 1783604646724,
-      "tag": "0001_add_goal_reservation_unique_constraint",
+      "version": "6",
+      "when": 1785932262755,
+      "tag": "0001_breezy_mastermind",
       "breakpoints": true
     }
   ]

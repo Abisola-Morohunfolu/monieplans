@@ -51,11 +51,11 @@ function StatementsPage() {
           <h3 className="font-heading text-xl font-semibold mb-2 text-text-primary">
             {uploading ? 'Uploading...' : 'Upload Bank Statement'}
           </h3>
-          <p className="text-text-secondary max-w-sm">Import your bank CSV to auto-categorize and track transactions.</p>
+          <p className="text-text-secondary max-w-sm">Import your bank statement PDF to auto-categorize and track transactions.</p>
           <input
             ref={fileInputRef}
             type="file"
-            accept=".csv"
+            accept=".pdf"
             className="hidden"
             onChange={handleFileChange}
           />
@@ -92,11 +92,11 @@ function StatementsPage() {
                   <div>
                     <p className="font-medium text-sm text-text-primary">{stmt.fileName}</p>
                     <p className="text-xs text-text-tertiary">
-                      {new Date(stmt.createdAt).toLocaleDateString()} - {stmt.transactionCount} transactions
+                      {stmt.uploadedAt || stmt.createdAt ? new Date(stmt.uploadedAt || stmt.createdAt!).toLocaleDateString() : ''} - {stmt.transactionCount ?? 0} transactions
                     </p>
                   </div>
                 </div>
-                <span className="badge-sage">{stmt.status}</span>
+                <span className="badge-sage">{stmt.uploadStatus || stmt.status}</span>
               </div>
             ))}
           </div>

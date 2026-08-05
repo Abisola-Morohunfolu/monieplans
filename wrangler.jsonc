@@ -1,0 +1,30 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "monieplans-api",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-08-04",
+  "compatibility_flags": ["nodejs_compat"],
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "monieplans-db"
+    }
+  ],
+  "r2_buckets": [
+    {
+      "binding": "R2",
+      "bucket_name": "monieplans-uploads"
+    }
+  ],
+  "queues": {
+    "producers": [
+      { "queue": "receipt-processing", "binding": "RECEIPT_PROCESSING" },
+      { "queue": "statement-processing", "binding": "STATEMENT_PROCESSING" }
+    ],
+    "consumers": [
+      { "queue": "receipt-processing" },
+      { "queue": "statement-processing" }
+    ]
+  },
+  "observability": { "enabled": true }
+}

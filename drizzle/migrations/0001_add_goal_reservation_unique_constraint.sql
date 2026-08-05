@@ -1,1 +1,0 @@
-ALTER TABLE "goal_budget_reservations" ADD CONSTRAINT "goal_budget_reservations_budget_period_id_goal_id_unique" UNIQUE("budget_period_id","goal_id");
