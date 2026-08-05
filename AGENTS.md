@@ -3,9 +3,10 @@
 ## Project overview
 
 Full-stack personal finance app:
-- **Backend:** NestJS v11 (TypeScript), Drizzle ORM, PostgreSQL, better-auth, Yarn 4
+- **Backend:** Hono v4 on Cloudflare Workers, Drizzle ORM, D1 (SQLite), better-auth, Yarn 4
 - **Frontend:** React v19, Vite v8, TanStack Router + React Query, Tailwind CSS v4, npm
-- **Tests:** Jest + Supertest (backend only; no frontend test framework)
+- **Tests:** Vitest
+- **CI/CD:** GitHub Actions → Cloudflare Workers + Pages
 
 ## Commands
 
@@ -13,15 +14,19 @@ Full-stack personal finance app:
 
 | Command | What it does |
 |---|---|
-| `yarn start:dev` | NestJS dev server with watch |
-| `yarn test` | Unit tests (`src/**/*.spec.ts`) |
-| `yarn test:e2e` | E2E tests (`test/*.e2e-spec.ts`) via Supertest |
+| `yarn dev` | Start Workers dev server (wrangler dev) |
+| `yarn deploy` | Deploy to Cloudflare Workers |
+| `yarn test` | Run Vitest tests |
+| `yarn test:watch` | Vitest in watch mode |
 | `yarn lint` | ESLint + Prettier fix |
-| `yarn build` | `nest build` |
+| `yarn format` | Prettier format |
+| `yarn typecheck` | TypeScript type check |
 | `yarn db:generate` | Drizzle Kit generate migrations |
-| `yarn db:migrate` | Drizzle Kit run migrations |
-| `yarn db:seed` | Seed system categories |
-| `yarn docker:up` | Start PostgreSQL (Docker Compose) |
+| `yarn db:migrate:local` | Apply D1 migrations locally (run after db:generate) |
+| `yarn db:migrate:remote` | Apply D1 migrations on Cloudflare |
+| `yarn db:seed:local` | Seed system categories (local D1) |
+| `yarn db:seed:remote` | Seed system categories (remote D1) |
+| `yarn db:studio` | Drizzle Kit studio |
 
 ### Frontend (`frontend/`)
 
@@ -36,45 +41,24 @@ Run backend commands from repo root; run frontend commands from `frontend/` dire
 
 ## Code conventions
 
-- **Backend:** NestJS modules with Drizzle repositories. Validation via `class-validator` + `ValidationPipe`. Auth via better-auth (session cookies, `@CurrentUser()` decorator).
-- **Frontend:** File-based routing under `src/routes/`. TanStack Router auto-generates `routeTree.gen.ts`. Data fetching via React Query hooks. Styling via Tailwind utility classes — custom theme tokens in `frontend/src/index.css`.
-- **TypeScript:** Use existing patterns in each module. Backend targets ES2023/NodeNext; frontend targets ES2023/bundler.
+- **Backend:** Hono routers in `src/routes/`, Drizzle ORM with D1, Zod validation, better-auth middleware.
+- **Frontend:** File-based routing under `src/routes/`. TanStack Router auto-generates `routeTree.gen.ts`. Styling via Tailwind utility classes.
+- **TypeScript:** ES2023/bundler module resolution. Shared utilities in `src/shared/`.
+- **Currency:** All amounts stored as integer cents in D1. Converted to/from display amounts at the API boundary.
 - **Commit style:** Conventional commits (`feat(scope):`, `fix(scope):`).
 
 ## Testing
 
-- Backend unit tests: `src/**/*.spec.ts` — Jest + NestJS `Test.createTestingModule`.
-- Backend E2E tests: `test/*.e2e-spec.ts` — Supertest against the full app (seeded test DB).
-- Frontend: No test framework configured yet. When adding, use Vitest + React Testing Library to match the Vite ecosystem.
+- Backend: Vitest. Tests in `src/**/*.test.ts`. Run via `yarn test`.
+- Frontend: No test framework configured yet.
 
 ## Database
 
-- PostgreSQL 16 (Docker locally, Render managed DB in production).
-- Schema: `src/database/schema/` (Drizzle ORM definitions).
-- Migrations: `drizzle/migrations/`.
-- Seed: `drizzle/seed.ts` (11 system categories).
-- Run `yarn docker:up` before any backend work requiring the DB.
+- D1 (Cloudflare's managed SQLite). Local dev via Miniflare (embedded in wrangler dev).
+- Schema: `src/database/schema/` (Drizzle ORM definitions for sqlite-core).
+- Migrations: `drizzle/migrations/` (SQL).
+- Seed: 11 system categories via `scripts/seed.sql` or `db:seed:local`.
 
 ## Multi-step work
 
-When a task spans many steps, maintain `.agent/PROGRESS.md`:
-
-```markdown
-# Task: <name>
-**Started:** <date>
-**Status:** in-progress | blocked | complete
-## Objective
-...
-## Completed Steps
-- [x] ...
-## Remaining Steps
-- [ ] ...
-## Key Decisions
-- ...
-## Current State
-<file, symbol, test status>
-## Resume Instructions
-<steps for a cold session>
-```
-
-If context is nearly full, stop new work, fully update `.agent/PROGRESS.md`, and tell the user: *Context is nearly full. State is in `.agent/PROGRESS.md`. New session: say **Resume from .agent/PROGRESS.md**.*
+When a task spans many steps, maintain `.agent/PROGRESS.md`.

@@ -1,50 +1,41 @@
-import { boolean, integer, numeric, pgEnum, pgTable, text, timestamp, unique, uuid } from 'drizzle-orm/pg-core';
+import { integer, sqliteTable, text, unique } from 'drizzle-orm/sqlite-core';
+import { sql } from 'drizzle-orm';
 import { user } from './auth';
 import { budgetPeriods } from './budget-periods';
 
-export const goalStatusEnum = pgEnum('goal_status', ['active', 'paused', 'completed', 'archived']);
-
-export const goalFeasibilityEnum = pgEnum('goal_feasibility', [
-  'on_track',
-  'at_risk',
-  'unrealistic',
-]);
-
-export const savingsGoals = pgTable('savings_goals', {
-  id: uuid('id').primaryKey().defaultRandom(),
+export const savingsGoals = sqliteTable('savings_goals', {
+  id: text('id').primaryKey(),
   userId: text('user_id')
     .notNull()
     .references(() => user.id, { onDelete: 'cascade' }),
   name: text('name').notNull(),
-  targetAmount: numeric('target_amount', { precision: 15, scale: 2 }).notNull(),
-  currentSavedAmount: numeric('current_saved_amount', { precision: 15, scale: 2 })
-    .notNull()
-    .default('0'),
+  targetAmountCents: integer('target_amount_cents').notNull(),
+  currentSavedAmountCents: integer('current_saved_amount_cents').notNull().default(0),
   targetDate: text('target_date'),
   priorityRank: integer('priority_rank').notNull().default(0),
-  status: goalStatusEnum('status').notNull().default('active'),
-  reserveInBudget: boolean('reserve_in_budget').notNull().default(false),
+  status: text('status').notNull().default('active'),
+  reserveInBudget: integer('reserve_in_budget', { mode: 'boolean' }).notNull().default(false),
   notes: text('notes'),
-  createdAt: timestamp('created_at').notNull().defaultNow(),
-  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+  createdAt: text('created_at').notNull().default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: text('updated_at').notNull().default(sql`CURRENT_TIMESTAMP`),
 });
 
-export const goalBudgetReservations = pgTable(
+export const goalBudgetReservations = sqliteTable(
   'goal_budget_reservations',
   {
-    id: uuid('id').primaryKey().defaultRandom(),
-    budgetPeriodId: uuid('budget_period_id')
+    id: text('id').primaryKey(),
+    budgetPeriodId: text('budget_period_id')
       .notNull()
       .references(() => budgetPeriods.id, { onDelete: 'cascade' }),
-    goalId: uuid('goal_id')
+    goalId: text('goal_id')
       .notNull()
       .references(() => savingsGoals.id, { onDelete: 'cascade' }),
-    reservedAmount: numeric('reserved_amount', { precision: 15, scale: 2 }).notNull(),
-    recommendedAmount: numeric('recommended_amount', { precision: 15, scale: 2 }),
-    feasibilityStatus: goalFeasibilityEnum('feasibility_status').notNull().default('on_track'),
+    reservedAmountCents: integer('reserved_amount_cents').notNull(),
+    recommendedAmountCents: integer('recommended_amount_cents'),
+    feasibilityStatus: text('feasibility_status').notNull().default('on_track'),
     feasibilityReason: text('feasibility_reason'),
-    createdAt: timestamp('created_at').notNull().defaultNow(),
-    updatedAt: timestamp('updated_at').notNull().defaultNow(),
+    createdAt: text('created_at').notNull().default(sql`CURRENT_TIMESTAMP`),
+    updatedAt: text('updated_at').notNull().default(sql`CURRENT_TIMESTAMP`),
   },
-  (t) => [unique().on(t.budgetPeriodId, t.goalId)],
+  (t) => [unique('uq_goal_reservations_period_goal').on(t.budgetPeriodId, t.goalId)],
 );
