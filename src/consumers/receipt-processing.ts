@@ -1,10 +1,12 @@
 import { drizzle } from 'drizzle-orm/d1';
 import { eq } from 'drizzle-orm';
 import * as schema from '../database/schema';
-import { nowISO } from '../shared/utils';
+import { nowISO, generateId, toCents } from '../shared/utils';
+import { parseReceipt } from '../lib/extract';
 
 interface Env {
   DB: D1Database;
+  R2: R2Bucket;
 }
 
 interface ReceiptMessage {
@@ -14,52 +16,72 @@ interface ReceiptMessage {
   storagePath: string;
 }
 
-export async function processReceiptMessages(batch: MessageBatch<ReceiptMessage>, env: Env) {
+export async function processReceiptMessages(
+  batch: MessageBatch<ReceiptMessage>,
+  env: Env,
+) {
   const db = drizzle(env.DB, { schema });
 
   for (const msg of batch.messages) {
-    const { receiptId, fileName } = msg.body;
+    const { receiptId, fileName, storagePath } = msg.body;
 
     try {
-      let parsedAmount = 1500;
-      const fileNumbers = fileName.match(/\d+/g);
-      if (fileNumbers && fileNumbers.length > 0) {
-        const matchedNum = parseFloat(fileNumbers[0]);
-        if (!isNaN(matchedNum) && matchedNum > 0) {
-          parsedAmount = matchedNum;
-        }
-      } else {
-        parsedAmount = Math.round((500 + Math.random() * 9500) * 100) / 100;
+      const r2Object = await env.R2.get(storagePath);
+      if (!r2Object) {
+        await db
+          .update(schema.expenseEntryReceipts)
+          .set({ parseStatus: 'failed' })
+          .where(eq(schema.expenseEntryReceipts.id, receiptId));
+        msg.ack();
+        continue;
       }
 
-      const merchants = ['Starbucks', 'Uber', 'Walmart', 'Amazon', 'Shell', 'Target', 'McDonalds'];
-      const parsedMerchantName = merchants[Math.floor(Math.random() * merchants.length)];
-      const parsedExpenseDate = new Date().toISOString().split('T')[0];
+      const fileBuffer = await r2Object.arrayBuffer();
+      const mimeType =
+        r2Object.httpMetadata?.contentType ?? 'application/octet-stream';
+
+      const parsed = await parseReceipt(fileBuffer, fileName, mimeType);
+
+      const parsedAmountCents =
+        parsed.total != null ? toCents(parsed.total) : null;
 
       await db
         .update(schema.expenseEntryReceipts)
         .set({
           parseStatus: 'parsed',
-          parsedAmountCents: Math.round(parsedAmount * 100),
-          parsedMerchantName,
-          parsedExpenseDate,
-          rawParserOutputJson: JSON.stringify({
-            confidence: 95,
-            extractedAt: nowISO(),
-            mockParser: 'Antigravity Mock OCR',
-            suggestedCategory: 'uncategorized',
-          }),
+          parsedAmountCents,
+          parsedExpenseDate: parsed.date ?? null,
+          parsedMerchantName: parsed.merchantName ?? null,
+          rawParserOutputJson: JSON.stringify(parsed),
           processedAt: nowISO(),
         })
         .where(eq(schema.expenseEntryReceipts.id, receiptId));
 
+      for (const item of parsed.items) {
+        await db.insert(schema.receiptLineItems).values({
+          id: generateId(),
+          receiptId,
+          name: item.name,
+          quantity: item.quantity > 0 ? item.quantity : 1,
+          unitPriceCents: item.unitPrice > 0 ? toCents(item.unitPrice) : null,
+          totalPriceCents: toCents(item.totalPrice || 0),
+          status: 'suggested',
+          createdAt: nowISO(),
+          updatedAt: nowISO(),
+        });
+      }
+
       msg.ack();
-    } catch (err) {
-      console.error('Error processing receipt:', err);
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+      console.error('Error processing receipt:', errorMessage);
       try {
         await db
           .update(schema.expenseEntryReceipts)
-          .set({ parseStatus: 'failed' })
+          .set({
+            parseStatus: 'failed',
+            rawParserOutputJson: JSON.stringify({ error: errorMessage }),
+          })
           .where(eq(schema.expenseEntryReceipts.id, receiptId));
       } catch (updateErr) {
         console.error('Failed to mark receipt as failed:', updateErr);

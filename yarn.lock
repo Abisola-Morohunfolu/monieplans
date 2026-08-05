@@ -1545,6 +1545,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@llamaindex/llama-cloud@npm:^2.13.0":
+  version: 2.13.0
+  resolution: "@llamaindex/llama-cloud@npm:2.13.0"
+  checksum: 8c87c4ddadfd13e4db3d964209812b5d67ff5bde05ecf924a5411d575071f96fec8b2d0037c3d73bf5950a9d3eabd4ab1d6a49e2be2b6a10790eadfec83935a9
+  languageName: node
+  linkType: hard
+
 "@napi-rs/lzma-linux-x64-gnu@npm:1.5.1":
   version: 1.5.1
   resolution: "@napi-rs/lzma-linux-x64-gnu@npm:1.5.1"
@@ -2472,15 +2479,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@types/node@npm:*":
-  version: 26.0.0
-  resolution: "@types/node@npm:26.0.0"
-  dependencies:
-    undici-types: "npm:~8.3.0"
-  checksum: f36e21634fd8e8ded162ca486508bd8bb229d398a8d5541f6d8c1255968d4464e53327a77f403b216ef98e3b6f6956882eef83e4857d4bc2be9569dd55d37aae
-  languageName: node
-  linkType: hard
-
 "@types/node@npm:^24.0.0":
   version: 24.13.2
   resolution: "@types/node@npm:24.13.2"
@@ -2496,15 +2494,6 @@ __metadata:
   dependencies:
     undici-types: "npm:~7.18.0"
   checksum: a5bc08f49b9581dcdca90e02cd77197a3c799840807664942e5cd5161a553d4d2ae8064f7e3294410d748d7d098b5c1848be7fa50c06f29c4193ab16be4e59eb
-  languageName: node
-  linkType: hard
-
-"@types/papaparse@npm:^5.3.15":
-  version: 5.5.2
-  resolution: "@types/papaparse@npm:5.5.2"
-  dependencies:
-    "@types/node": "npm:*"
-  checksum: 27b097b6f8f204b20ade1f2cbf4798eb38caa5fbfa3180fd0faa5e3f9aea371c1786ae180d56f3287556463eefe3100c953e316ea6ee99d7ae1d04111cfc9e50
   languageName: node
   linkType: hard
 
@@ -4894,8 +4883,8 @@ __metadata:
     "@eslint/eslintrc": "npm:^3.2.0"
     "@eslint/js": "npm:^9.18.0"
     "@hono/node-server": "npm:^1.13.7"
+    "@llamaindex/llama-cloud": "npm:^2.13.0"
     "@types/node": "npm:^24.0.0"
-    "@types/papaparse": "npm:^5.3.15"
     better-auth: "npm:^1.6.20"
     drizzle-kit: "npm:^0.31.10"
     drizzle-orm: "npm:^0.45.2"
@@ -4904,7 +4893,6 @@ __metadata:
     eslint-plugin-prettier: "npm:^5.2.2"
     globals: "npm:^17.0.0"
     hono: "npm:^4.6.14"
-    papaparse: "npm:^5.4.1"
     prettier: "npm:^3.4.2"
     typescript: "npm:^5.7.3"
     typescript-eslint: "npm:^8.20.0"
@@ -5087,13 +5075,6 @@ __metadata:
   dependencies:
     p-limit: "npm:^3.0.2"
   checksum: 2290d627ab7903b8b70d11d384fee714b797f6040d9278932754a6860845c4d3190603a0772a663c8cb5a7b21d1b16acb3a6487ebcafa9773094edc3dfe6009a
-  languageName: node
-  linkType: hard
-
-"papaparse@npm:^5.4.1":
-  version: 5.5.4
-  resolution: "papaparse@npm:5.5.4"
-  checksum: 8942ae45dcc171b720fd67953f825a544fdeeeadb85cf28a239d016fd6cff0c59650e667b3158a9a0153c6e1d7674c199603bcf360d854ce7edce822eb7f7bb6
   languageName: node
   linkType: hard
 
@@ -5837,13 +5818,6 @@ __metadata:
   version: 7.18.2
   resolution: "undici-types@npm:7.18.2"
   checksum: 85a79189113a238959d7a647368e4f7c5559c3a404ebdb8fc4488145ce9426fcd82252a844a302798dfc0e37e6fb178ff481ed03bc4caf634c5757d9ef43521d
-  languageName: node
-  linkType: hard
-
-"undici-types@npm:~8.3.0":
-  version: 8.3.0
-  resolution: "undici-types@npm:8.3.0"
-  checksum: c8aa7e2fbebfce519654dafadc0ece59be888d2ccaf180fb4495da875e7b536d2456345c384069c7e6f3e9c9ab7435f074957da306f142343eee86ff8048855a
   languageName: node
   linkType: hard
 

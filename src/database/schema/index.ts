@@ -7,4 +7,5 @@ export * from './weekly-allocations';
 export * from './statements';
 export * from './goals';
 export * from './expense-entries';
+export * from './income-entries';
 export * from './analytics';

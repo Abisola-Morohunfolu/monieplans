@@ -24,10 +24,10 @@
   },
   "dependencies": {
     "@hono/node-server": "^1.13.7",
+    "@llamaindex/llama-cloud": "^2.13.0",
     "better-auth": "^1.6.20",
     "drizzle-orm": "^0.45.2",
     "hono": "^4.6.14",
-    "papaparse": "^5.4.1",
     "zod": "^3.24.1"
   },
   "devDependencies": {
@@ -35,7 +35,6 @@
     "@eslint/eslintrc": "^3.2.0",
     "@eslint/js": "^9.18.0",
     "@types/node": "^24.0.0",
-    "@types/papaparse": "^5.3.15",
     "drizzle-kit": "^0.31.10",
     "eslint": "^9.18.0",
     "eslint-config-prettier": "^10.0.1",

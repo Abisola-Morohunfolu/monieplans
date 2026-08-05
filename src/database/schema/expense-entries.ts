@@ -4,6 +4,7 @@ import { user } from './auth';
 import { budgetPeriods } from './budget-periods';
 import { categories } from './categories';
 import { weeklyBudgetAllocations } from './weekly-allocations';
+import { transactions } from './statements';
 
 export const expenseEntries = sqliteTable('expense_entries', {
   id: text('id').primaryKey(),
@@ -17,15 +18,22 @@ export const expenseEntries = sqliteTable('expense_entries', {
     () => weeklyBudgetAllocations.id,
   ),
   categoryId: text('category_id').references(() => categories.id),
+  transactionId: text('transaction_id').references(() => transactions.id),
   amountCents: integer('amount_cents').notNull(),
   expenseDate: text('expense_date').notNull(),
   description: text('description'),
   sourceType: text('source_type').notNull().default('manual'),
   merchantName: text('merchant_name'),
   receiptParseConfidence: integer('receipt_parse_confidence'),
-  receiptParseStatus: text('receipt_parse_status').notNull().default('not_applicable'),
-  createdAt: text('created_at').notNull().default(sql`CURRENT_TIMESTAMP`),
-  updatedAt: text('updated_at').notNull().default(sql`CURRENT_TIMESTAMP`),
+  receiptParseStatus: text('receipt_parse_status')
+    .notNull()
+    .default('not_applicable'),
+  createdAt: text('created_at')
+    .notNull()
+    .default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: text('updated_at')
+    .notNull()
+    .default(sql`CURRENT_TIMESTAMP`),
   deletedAt: text('deleted_at'),
 });
 
@@ -37,13 +45,35 @@ export const expenseEntryReceipts = sqliteTable('expense_entry_receipts', {
   expenseEntryId: text('expense_entry_id').references(() => expenseEntries.id),
   fileName: text('file_name').notNull(),
   storagePath: text('storage_path').notNull(),
+  receiptType: text('receipt_type').notNull().default('other'),
   parseStatus: text('parse_status').notNull().default('uploaded'),
   parsedAmountCents: integer('parsed_amount_cents'),
   parsedExpenseDate: text('parsed_expense_date'),
   parsedMerchantName: text('parsed_merchant_name'),
   rawParserOutputJson: text('raw_parser_output_json'),
   isActive: integer('is_active', { mode: 'boolean' }).notNull().default(true),
-  createdAt: text('created_at').notNull().default(sql`CURRENT_TIMESTAMP`),
+  createdAt: text('created_at')
+    .notNull()
+    .default(sql`CURRENT_TIMESTAMP`),
   processedAt: text('processed_at'),
   deletedAt: text('deleted_at'),
+});
+
+export const receiptLineItems = sqliteTable('receipt_line_items', {
+  id: text('id').primaryKey(),
+  receiptId: text('receipt_id')
+    .notNull()
+    .references(() => expenseEntryReceipts.id, { onDelete: 'cascade' }),
+  name: text('name').notNull(),
+  quantity: integer('quantity').notNull().default(1),
+  unitPriceCents: integer('unit_price_cents'),
+  totalPriceCents: integer('total_price_cents').notNull(),
+  categoryId: text('category_id').references(() => categories.id),
+  status: text('status').notNull().default('suggested'),
+  createdAt: text('created_at')
+    .notNull()
+    .default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: text('updated_at')
+    .notNull()
+    .default(sql`CURRENT_TIMESTAMP`),
 });

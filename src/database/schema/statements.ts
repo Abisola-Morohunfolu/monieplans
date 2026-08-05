@@ -17,7 +17,11 @@ export const statementUploads = sqliteTable('statement_uploads', {
   statementPeriodStart: text('statement_period_start'),
   statementPeriodEnd: text('statement_period_end'),
   parseErrorSummary: text('parse_error_summary'),
-  uploadedAt: text('uploaded_at').notNull().default(sql`CURRENT_TIMESTAMP`),
+  rawMarkdown: text('raw_markdown'),
+  rawParserOutputJson: text('raw_parser_output_json'),
+  uploadedAt: text('uploaded_at')
+    .notNull()
+    .default(sql`CURRENT_TIMESTAMP`),
   processedAt: text('processed_at'),
 });
 
@@ -26,7 +30,9 @@ export const transactions = sqliteTable('transactions', {
   userId: text('user_id')
     .notNull()
     .references(() => user.id, { onDelete: 'cascade' }),
-  statementUploadId: text('statement_upload_id').references(() => statementUploads.id),
+  statementUploadId: text('statement_upload_id').references(
+    () => statementUploads.id,
+  ),
   budgetPeriodId: text('budget_period_id').references(() => budgetPeriods.id),
   postedDate: text('posted_date').notNull(),
   descriptionRaw: text('description_raw').notNull(),
@@ -37,27 +43,50 @@ export const transactions = sqliteTable('transactions', {
   merchantName: text('merchant_name'),
   categoryId: text('category_id').references(() => categories.id),
   categoryConfidence: integer('category_confidence'),
-  isUserCorrected: integer('is_user_corrected', { mode: 'boolean' }).notNull().default(false),
-  isExcludedFromAnalysis: integer('is_excluded_from_analysis', { mode: 'boolean' })
+  isUserCorrected: integer('is_user_corrected', { mode: 'boolean' })
     .notNull()
     .default(false),
+  isExcludedFromAnalysis: integer('is_excluded_from_analysis', {
+    mode: 'boolean',
+  })
+    .notNull()
+    .default(false),
+  parentTransactionId: text('parent_transaction_id'),
+  isInternalBookkeeping: integer('is_internal_bookkeeping', { mode: 'boolean' })
+    .notNull()
+    .default(false),
+  transactionType: text('transaction_type'),
+  rawAiOutputJson: text('raw_ai_output_json'),
   externalHash: text('external_hash'),
-  createdAt: text('created_at').notNull().default(sql`CURRENT_TIMESTAMP`),
-  updatedAt: text('updated_at').notNull().default(sql`CURRENT_TIMESTAMP`),
+  createdAt: text('created_at')
+    .notNull()
+    .default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: text('updated_at')
+    .notNull()
+    .default(sql`CURRENT_TIMESTAMP`),
 });
 
-export const transactionCategoryRules = sqliteTable('transaction_category_rules', {
-  id: text('id').primaryKey(),
-  userId: text('user_id')
-    .notNull()
-    .references(() => user.id, { onDelete: 'cascade' }),
-  matchType: text('match_type').notNull(),
-  matchValue: text('match_value').notNull(),
-  categoryId: text('category_id')
-    .notNull()
-    .references(() => categories.id),
-  priority: integer('priority').notNull().default(0),
-  createdFromTransactionId: text('created_from_transaction_id').references(() => transactions.id),
-  createdAt: text('created_at').notNull().default(sql`CURRENT_TIMESTAMP`),
-  updatedAt: text('updated_at').notNull().default(sql`CURRENT_TIMESTAMP`),
-});
+export const transactionCategoryRules = sqliteTable(
+  'transaction_category_rules',
+  {
+    id: text('id').primaryKey(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    matchType: text('match_type').notNull(),
+    matchValue: text('match_value').notNull(),
+    categoryId: text('category_id')
+      .notNull()
+      .references(() => categories.id),
+    priority: integer('priority').notNull().default(0),
+    createdFromTransactionId: text('created_from_transaction_id').references(
+      () => transactions.id,
+    ),
+    createdAt: text('created_at')
+      .notNull()
+      .default(sql`CURRENT_TIMESTAMP`),
+    updatedAt: text('updated_at')
+      .notNull()
+      .default(sql`CURRENT_TIMESTAMP`),
+  },
+);

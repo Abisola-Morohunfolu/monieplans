@@ -1,6 +1,10 @@
 import { z } from 'zod';
 
-const budgetCycleType = z.enum(['calendar_month', 'custom_30_day', 'custom_31_day']);
+const budgetCycleType = z.enum([
+  'calendar_month',
+  'custom_30_day',
+  'custom_31_day',
+]);
 const planningMode = z.enum(['income_based', 'spending_cap_based']);
 const weekStartDay = z.enum(['monday', 'sunday', 'saturday']);
 
@@ -18,7 +22,7 @@ export const createBudgetSchema = z.object({
 });
 
 export const createExpenseSchema = z.object({
-  amount: z.number().positive(),
+  amount: z.number().min(0),
   expenseDate: z.string(),
   categoryId: z.string().optional(),
   description: z.string().optional(),
@@ -27,7 +31,7 @@ export const createExpenseSchema = z.object({
 });
 
 export const updateExpenseSchema = z.object({
-  amount: z.number().positive().optional(),
+  amount: z.number().min(0).optional(),
   expenseDate: z.string().optional(),
   categoryId: z.string().optional(),
   description: z.string().optional(),
@@ -84,7 +88,8 @@ export const createFixedExpenseTemplateSchema = z.object({
   notes: z.string().optional(),
 });
 
-export const updateFixedExpenseTemplateSchema = createFixedExpenseTemplateSchema.partial();
+export const updateFixedExpenseTemplateSchema =
+  createFixedExpenseTemplateSchema.partial();
 
 export const uploadStatementQuerySchema = z.object({
   budgetPeriodId: z.string().optional(),
@@ -107,6 +112,31 @@ export const generateInsightsSchema = z.object({
   budgetPeriodId: z.string(),
 });
 
+export const createIncomeSchema = z.object({
+  amount: z.number().min(0),
+  incomeDate: z.string(),
+  categoryId: z.string().optional(),
+  description: z.string().optional(),
+});
+
+export const listIncomeQuerySchema = z.object({
+  budgetPeriodId: z.string().optional(),
+  categoryId: z.string().optional(),
+  startDate: z.string().optional(),
+  endDate: z.string().optional(),
+  sourceType: z.enum(['manual', 'statement_import']).optional(),
+  search: z.string().optional(),
+});
+
+export const confirmReceiptItemsSchema = z.object({
+  itemIds: z.array(z.string()),
+});
+
+export const listTransactionsQuerySchema = z.object({
+  hideInternal: z.enum(['true', 'false']).optional(),
+  transactionType: z.string().optional(),
+});
+
 export type CreateBudgetInput = z.infer<typeof createBudgetSchema>;
 export type CreateExpenseInput = z.infer<typeof createExpenseSchema>;
 export type UpdateExpenseInput = z.infer<typeof updateExpenseSchema>;
@@ -114,6 +144,12 @@ export type ListExpensesQuery = z.infer<typeof listExpensesQuerySchema>;
 export type CreateGoalInput = z.infer<typeof createGoalSchema>;
 export type UpdateGoalInput = z.infer<typeof updateGoalSchema>;
 export type UpdateProfileInput = z.infer<typeof updateProfileSchema>;
-export type CreateFixedExpenseTemplateInput = z.infer<typeof createFixedExpenseTemplateSchema>;
-export type UpdateFixedExpenseTemplateInput = z.infer<typeof updateFixedExpenseTemplateSchema>;
+export type CreateFixedExpenseTemplateInput = z.infer<
+  typeof createFixedExpenseTemplateSchema
+>;
+export type UpdateFixedExpenseTemplateInput = z.infer<
+  typeof updateFixedExpenseTemplateSchema
+>;
 export type ReserveGoalInput = z.infer<typeof reserveGoalSchema>;
+export type CreateIncomeInput = z.infer<typeof createIncomeSchema>;
+export type ListIncomeQuery = z.infer<typeof listIncomeQuerySchema>;
