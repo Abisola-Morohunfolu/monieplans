@@ -21,6 +21,11 @@ export interface Env {
   RECEIPT_PROCESSING: Queue;
   STATEMENT_PROCESSING: Queue;
   BETTER_AUTH_URL?: string;
+  GOOGLE_CLIENT_ID?: string;
+  GOOGLE_CLIENT_SECRET?: string;
+  GITHUB_CLIENT_ID?: string;
+  GITHUB_CLIENT_SECRET?: string;
+  RESEND_API_KEY?: string;
 }
 
 const app = new Hono<{ Bindings: Env }>();
@@ -35,10 +40,10 @@ app.use(
   }),
 );
 
-app.use('/api/*', async (c, next) => {
-  const { auth, db } = getAuth(c.env.DB);
-  c.set('auth', auth as never);
-  c.set('db', db as never);
+app.use('/api/*', async (ctx, next) => {
+  const { auth, db } = getAuth(ctx.env);
+  ctx.set('auth', auth);
+  ctx.set('db', db);
   await next();
 });
 
