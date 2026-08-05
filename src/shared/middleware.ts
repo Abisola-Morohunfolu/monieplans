@@ -1,10 +1,10 @@
-import { Context, Next } from 'hono';
+import type { Context, Next } from 'hono';
 import { HTTPException } from 'hono/http-exception';
-import { getAuth } from '../auth';
+import { getAuth, type AuthEnv } from '../auth';
 
 export async function authMiddleware(c: Context, next: Next) {
-  const { auth } = getAuth(c.env.DB as never as D1Database);
-  const session = await (auth as { api: { getSession: (opts: { headers: Headers }) => Promise<{ user: { id: string; email: string; name: string }; session: { id: string } } | null> } }).api.getSession({
+  const { auth } = getAuth(c.env as AuthEnv);
+  const session = await auth.api.getSession({
     headers: c.req.raw.headers,
   });
   if (!session) {

@@ -116,7 +116,7 @@ function DashboardPage() {
                     </div>
                     <div>
                       <p className="font-medium text-sm text-text-primary">{tx.description || 'Transaction'}</p>
-                      <p className="text-xs text-text-tertiary">{new Date(tx.date).toLocaleDateString()}</p>
+                      <p className="text-xs text-text-tertiary">{new Date(tx.date ?? '').toLocaleDateString()}</p>
                     </div>
                   </div>
                   <p className="font-medium text-sm text-text-primary">-${Number(tx.amount).toFixed(2)}</p>

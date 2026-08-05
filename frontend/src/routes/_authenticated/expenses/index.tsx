@@ -82,7 +82,7 @@ function ExpensesPage() {
                   </div>
                   <div>
                     <p className="font-medium text-sm text-text-primary">{expense.description || 'Expense'}</p>
-                    <p className="text-xs text-text-tertiary">{new Date(expense.date).toLocaleDateString()}</p>
+                    <p className="text-xs text-text-tertiary">{new Date(expense.date ?? '').toLocaleDateString()}</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
