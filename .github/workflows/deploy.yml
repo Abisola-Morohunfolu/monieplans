@@ -40,7 +40,7 @@ jobs:
           cache: yarn
       - run: yarn install --immutable
       - name: Apply D1 migrations
-        run: npx wrangler d1 migrations apply DB --remote
+        run: npx wrangler d1 migrations apply monieplans_db --remote
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
@@ -62,8 +62,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - run: npm ci
-      - run: npm run build
+      - run: yarn install --immutable
+      - run: yarn run build
       - name: Deploy to Pages
         run: npx wrangler pages deploy dist --project-name=monieplans
         env:
