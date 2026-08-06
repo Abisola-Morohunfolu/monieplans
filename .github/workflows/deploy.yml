@@ -3,6 +3,7 @@ name: Deploy
 on:
   push:
     branches: [master]
+  workflow_dispatch:
 
 jobs:
   typecheck:
@@ -14,6 +15,7 @@ jobs:
           node-version: 22
           cache: yarn
       - run: yarn install --immutable
+      - run: yarn typecheck
 
   test:
     runs-on: ubuntu-latest
