@@ -101,12 +101,8 @@ describe('Zod schemas', () => {
     });
 
     it('validates status enum', () => {
-      expect(() =>
-        updateGoalSchema.parse({ status: 'invalid' }),
-      ).toThrow();
-      expect(() =>
-        updateGoalSchema.parse({ status: 'active' }),
-      ).not.toThrow();
+      expect(() => updateGoalSchema.parse({ status: 'invalid' })).toThrow();
+      expect(() => updateGoalSchema.parse({ status: 'active' })).not.toThrow();
     });
   });
 

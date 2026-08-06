@@ -3,45 +3,56 @@ import { HTTPException } from 'hono/http-exception';
 import { and, desc, eq } from 'drizzle-orm';
 import * as schema from '../database/schema';
 import { generateId, nowISO, toCents } from '../shared/utils';
-import { createFixedExpenseTemplateSchema, updateFixedExpenseTemplateSchema } from '../shared/schemas';
+import {
+  createFixedExpenseTemplateSchema,
+  updateFixedExpenseTemplateSchema,
+} from '../shared/schemas';
 import { validateJson } from '../shared/validate';
 
 export const fixedExpensesRouter = new Hono();
 
-fixedExpensesRouter.post('/templates', validateJson(createFixedExpenseTemplateSchema), async (c) => {
-  const user = c.get('user');
-  const db = c.get('db');
-  const body = c.get('body') as unknown as ReturnType<typeof createFixedExpenseTemplateSchema.parse>;
+fixedExpensesRouter.post(
+  '/templates',
+  validateJson(createFixedExpenseTemplateSchema),
+  async (c) => {
+    const user = c.get('user');
+    const db = c.get('db');
+    const body = c.get('body') as unknown as ReturnType<
+      typeof createFixedExpenseTemplateSchema.parse
+    >;
 
-  if (body.categoryId) {
-    const [category] = await db
-      .select()
-      .from(schema.categories)
-      .where(eq(schema.categories.id, body.categoryId!));
-    if (!category) throw new HTTPException(404, { message: 'Category not found' });
-  }
+    if (body.categoryId) {
+      const [category] = await db
+        .select()
+        .from(schema.categories)
+        .where(eq(schema.categories.id, body.categoryId));
+      if (!category)
+        throw new HTTPException(404, { message: 'Category not found' });
+    }
 
-  const [template] = await db
-    .insert(schema.fixedExpenseTemplates)
-    .values({
-      id: generateId(),
-      userId: user.id,
-      name: body.name,
-      categoryId: body.categoryId ?? null,
-      amountCents: toCents(body.amount),
-      cadence: body.cadence,
-      defaultDueDay: body.defaultDueDay ?? null,
-      isActive: body.isActive ?? true,
-      isMandatory: body.isMandatory ?? false,
-      isProtectedFromCutRecommendations: body.isProtectedFromCutRecommendations ?? false,
-      notes: body.notes ?? null,
-      createdAt: nowISO(),
-      updatedAt: nowISO(),
-    })
-    .returning();
+    const [template] = await db
+      .insert(schema.fixedExpenseTemplates)
+      .values({
+        id: generateId(),
+        userId: user.id,
+        name: body.name,
+        categoryId: body.categoryId ?? null,
+        amountCents: toCents(body.amount),
+        cadence: body.cadence,
+        defaultDueDay: body.defaultDueDay ?? null,
+        isActive: body.isActive ?? true,
+        isMandatory: body.isMandatory ?? false,
+        isProtectedFromCutRecommendations:
+          body.isProtectedFromCutRecommendations ?? false,
+        notes: body.notes ?? null,
+        createdAt: nowISO(),
+        updatedAt: nowISO(),
+      })
+      .returning();
 
-  return c.json(template, 201);
-});
+    return c.json(template, 201);
+  },
+);
 
 fixedExpensesRouter.get('/templates', async (c) => {
   const user = c.get('user');
@@ -59,73 +70,111 @@ fixedExpensesRouter.get('/templates', async (c) => {
 fixedExpensesRouter.get('/templates/:id', async (c) => {
   const user = c.get('user');
   const db = c.get('db');
-  const id = c.req.param('id')!;
+  const id = c.req.param('id');
 
   const [template] = await db
     .select()
     .from(schema.fixedExpenseTemplates)
-    .where(and(eq(schema.fixedExpenseTemplates.userId, user.id), eq(schema.fixedExpenseTemplates.id, id)));
+    .where(
+      and(
+        eq(schema.fixedExpenseTemplates.userId, user.id),
+        eq(schema.fixedExpenseTemplates.id, id),
+      ),
+    );
 
-  if (!template) throw new HTTPException(404, { message: 'Fixed expense template not found' });
+  if (!template)
+    throw new HTTPException(404, {
+      message: 'Fixed expense template not found',
+    });
   return c.json(template);
 });
 
-fixedExpensesRouter.patch('/templates/:id', validateJson(updateFixedExpenseTemplateSchema), async (c) => {
-  const user = c.get('user');
-  const db = c.get('db');
-  const id = c.req.param('id')!;
-  const body = c.get('body') as unknown as ReturnType<typeof updateFixedExpenseTemplateSchema.parse>;
+fixedExpensesRouter.patch(
+  '/templates/:id',
+  validateJson(updateFixedExpenseTemplateSchema),
+  async (c) => {
+    const user = c.get('user');
+    const db = c.get('db');
+    const id = c.req.param('id')!;
+    const body = c.get('body') as unknown as ReturnType<
+      typeof updateFixedExpenseTemplateSchema.parse
+    >;
 
-  const [template] = await db
-    .select()
-    .from(schema.fixedExpenseTemplates)
-    .where(and(eq(schema.fixedExpenseTemplates.userId, user.id), eq(schema.fixedExpenseTemplates.id, id)));
-
-  if (!template) throw new HTTPException(404, { message: 'Fixed expense template not found' });
-
-  if (body.categoryId) {
-    const [category] = await db
+    const [template] = await db
       .select()
-      .from(schema.categories)
-      .where(eq(schema.categories.id, body.categoryId!));
-    if (!category) throw new HTTPException(404, { message: 'Category not found' });
-  }
+      .from(schema.fixedExpenseTemplates)
+      .where(
+        and(
+          eq(schema.fixedExpenseTemplates.userId, user.id),
+          eq(schema.fixedExpenseTemplates.id, id),
+        ),
+      );
 
-  const [updated] = await db
-    .update(schema.fixedExpenseTemplates)
-    .set({
-      name: body.name,
-      categoryId: body.categoryId,
-      amountCents: body.amount !== undefined ? toCents(body.amount) : undefined,
-      cadence: body.cadence,
-      defaultDueDay: body.defaultDueDay,
-      isActive: body.isActive,
-      isMandatory: body.isMandatory,
-      isProtectedFromCutRecommendations: body.isProtectedFromCutRecommendations,
-      notes: body.notes,
-      updatedAt: nowISO(),
-    })
-    .where(eq(schema.fixedExpenseTemplates.id, id))
-    .returning();
+    if (!template)
+      throw new HTTPException(404, {
+        message: 'Fixed expense template not found',
+      });
 
-  return c.json(updated);
-});
+    if (body.categoryId) {
+      const [category] = await db
+        .select()
+        .from(schema.categories)
+        .where(eq(schema.categories.id, body.categoryId));
+      if (!category)
+        throw new HTTPException(404, { message: 'Category not found' });
+    }
+
+    const [updated] = await db
+      .update(schema.fixedExpenseTemplates)
+      .set({
+        name: body.name,
+        categoryId: body.categoryId,
+        amountCents:
+          body.amount !== undefined ? toCents(body.amount) : undefined,
+        cadence: body.cadence,
+        defaultDueDay: body.defaultDueDay,
+        isActive: body.isActive,
+        isMandatory: body.isMandatory,
+        isProtectedFromCutRecommendations:
+          body.isProtectedFromCutRecommendations,
+        notes: body.notes,
+        updatedAt: nowISO(),
+      })
+      .where(eq(schema.fixedExpenseTemplates.id, id))
+      .returning();
+
+    return c.json(updated);
+  },
+);
 
 fixedExpensesRouter.delete('/templates/:id', async (c) => {
   const user = c.get('user');
   const db = c.get('db');
-  const id = c.req.param('id')!;
+  const id = c.req.param('id');
 
   const [template] = await db
     .select()
     .from(schema.fixedExpenseTemplates)
-    .where(and(eq(schema.fixedExpenseTemplates.userId, user.id), eq(schema.fixedExpenseTemplates.id, id)));
+    .where(
+      and(
+        eq(schema.fixedExpenseTemplates.userId, user.id),
+        eq(schema.fixedExpenseTemplates.id, id),
+      ),
+    );
 
-  if (!template) throw new HTTPException(404, { message: 'Fixed expense template not found' });
+  if (!template)
+    throw new HTTPException(404, {
+      message: 'Fixed expense template not found',
+    });
 
   await db
     .delete(schema.fixedExpenseTemplates)
-    .where(and(eq(schema.fixedExpenseTemplates.userId, user.id), eq(schema.fixedExpenseTemplates.id, id)));
+    .where(
+      and(
+        eq(schema.fixedExpenseTemplates.userId, user.id),
+        eq(schema.fixedExpenseTemplates.id, id),
+      ),
+    );
 
   return c.json({ success: true });
 });
@@ -133,19 +182,30 @@ fixedExpensesRouter.delete('/templates/:id', async (c) => {
 fixedExpensesRouter.post('/generate-items/:budgetPeriodId', async (c) => {
   const user = c.get('user');
   const db = c.get('db');
-  const budgetPeriodId = c.req.param('budgetPeriodId')!;
+  const budgetPeriodId = c.req.param('budgetPeriodId');
 
   const [budgetPeriod] = await db
     .select()
     .from(schema.budgetPeriods)
-    .where(and(eq(schema.budgetPeriods.id, budgetPeriodId), eq(schema.budgetPeriods.userId, user.id)));
+    .where(
+      and(
+        eq(schema.budgetPeriods.id, budgetPeriodId),
+        eq(schema.budgetPeriods.userId, user.id),
+      ),
+    );
 
-  if (!budgetPeriod) throw new HTTPException(404, { message: 'Budget period not found' });
+  if (!budgetPeriod)
+    throw new HTTPException(404, { message: 'Budget period not found' });
 
   const activeTemplates = await db
     .select()
     .from(schema.fixedExpenseTemplates)
-    .where(and(eq(schema.fixedExpenseTemplates.userId, user.id), eq(schema.fixedExpenseTemplates.isActive, true)));
+    .where(
+      and(
+        eq(schema.fixedExpenseTemplates.userId, user.id),
+        eq(schema.fixedExpenseTemplates.isActive, true),
+      ),
+    );
 
   if (activeTemplates.length === 0) return c.json([]);
 
@@ -177,7 +237,10 @@ fixedExpensesRouter.post('/generate-items/:budgetPeriodId', async (c) => {
       };
     });
 
-    const items = await tx.insert(schema.fixedExpenseItems).values(itemsToInsert).returning();
+    const items = await tx
+      .insert(schema.fixedExpenseItems)
+      .values(itemsToInsert)
+      .returning();
     return c.json(items, 201);
   });
 });

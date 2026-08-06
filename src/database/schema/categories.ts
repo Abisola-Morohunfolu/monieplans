@@ -11,10 +11,16 @@ export const categories = sqliteTable(
     name: text('name').notNull(),
     groupName: text('group_name'),
     kind: text('kind').notNull().default('expense'),
-    isSystem: integer('is_system', { mode: 'boolean' }).notNull().default(false),
+    isSystem: integer('is_system', { mode: 'boolean' })
+      .notNull()
+      .default(false),
     isActive: integer('is_active', { mode: 'boolean' }).notNull().default(true),
-    createdAt: text('created_at').notNull().default(sql`CURRENT_TIMESTAMP`),
-    updatedAt: text('updated_at').notNull().default(sql`CURRENT_TIMESTAMP`),
+    createdAt: text('created_at')
+      .notNull()
+      .default(sql`CURRENT_TIMESTAMP`),
+    updatedAt: text('updated_at')
+      .notNull()
+      .default(sql`CURRENT_TIMESTAMP`),
   },
   (t) => [unique('uq_categories_user_code').on(t.userId, t.code)],
 );

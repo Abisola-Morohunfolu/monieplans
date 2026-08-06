@@ -2,7 +2,7 @@ name: Deploy
 
 on:
   push:
-    branches: [main]
+    branches: [master]
 
 jobs:
   typecheck:
@@ -30,6 +30,7 @@ jobs:
   deploy-api:
     needs: [typecheck, test]
     runs-on: ubuntu-latest
+    environment: prod
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -51,6 +52,7 @@ jobs:
   deploy-frontend:
     needs: [typecheck, test]
     runs-on: ubuntu-latest
+    environment: prod
     defaults:
       run:
         working-directory: frontend
