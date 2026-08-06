@@ -22,7 +22,7 @@ export const createBudgetSchema = z.object({
 });
 
 export const createExpenseSchema = z.object({
-  amount: z.number().min(0),
+  amount: z.number().positive(),
   expenseDate: z.string(),
   categoryId: z.string().optional(),
   description: z.string().optional(),
