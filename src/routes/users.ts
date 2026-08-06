@@ -47,40 +47,46 @@ usersRouter.get('/me/profile', async (c) => {
   });
 });
 
-usersRouter.patch('/me/profile', validateJson(updateProfileSchema), async (c) => {
-  const user = c.get('user');
-  const db = c.get('db');
-  const body = c.get('body') as unknown as ReturnType<typeof updateProfileSchema.parse>;
-  const now = nowISO();
+usersRouter.patch(
+  '/me/profile',
+  validateJson(updateProfileSchema),
+  async (c) => {
+    const user = c.get('user');
+    const db = c.get('db');
+    const body = c.get('body') as unknown as ReturnType<
+      typeof updateProfileSchema.parse
+    >;
+    const now = nowISO();
 
-  const values = {
-    userId: user.id,
-    fullName: body.fullName,
-    preferredCurrency: body.preferredCurrency,
-    timezone: body.timezone,
-    budgetCycleAnchorDay: body.budgetCycleAnchorDay,
-    defaultBudgetCycleType: body.defaultBudgetCycleType,
-    weekStartDay: body.weekStartDay,
-  };
+    const values = {
+      userId: user.id,
+      fullName: body.fullName,
+      preferredCurrency: body.preferredCurrency,
+      timezone: body.timezone,
+      budgetCycleAnchorDay: body.budgetCycleAnchorDay,
+      defaultBudgetCycleType: body.defaultBudgetCycleType,
+      weekStartDay: body.weekStartDay,
+    };
 
-  const setValues = {
-    fullName: body.fullName,
-    preferredCurrency: body.preferredCurrency,
-    timezone: body.timezone,
-    budgetCycleAnchorDay: body.budgetCycleAnchorDay,
-    defaultBudgetCycleType: body.defaultBudgetCycleType,
-    weekStartDay: body.weekStartDay,
-    updatedAt: now,
-  };
+    const setValues = {
+      fullName: body.fullName,
+      preferredCurrency: body.preferredCurrency,
+      timezone: body.timezone,
+      budgetCycleAnchorDay: body.budgetCycleAnchorDay,
+      defaultBudgetCycleType: body.defaultBudgetCycleType,
+      weekStartDay: body.weekStartDay,
+      updatedAt: now,
+    };
 
-  const [profile] = await db
-    .insert(schema.userProfiles)
-    .values({ id: generateId(), ...values, createdAt: now, updatedAt: now })
-    .onConflictDoUpdate({
-      target: schema.userProfiles.userId,
-      set: setValues,
-    })
-    .returning();
+    const [profile] = await db
+      .insert(schema.userProfiles)
+      .values({ id: generateId(), ...values, createdAt: now, updatedAt: now })
+      .onConflictDoUpdate({
+        target: schema.userProfiles.userId,
+        set: setValues,
+      })
+      .returning();
 
-  return c.json(profile);
-});
+    return c.json(profile);
+  },
+);

@@ -6,20 +6,21 @@
   "compatibility_flags": ["nodejs_compat"],
   "d1_databases": [
     {
-      "binding": "DB",
-      "database_name": "monieplans-db"
+      "binding": "monieplans_db",
+      "database_name": "monieplans-db",
+      "database_id": "dc613114-1ee8-45b8-8a2f-28efd62480cc"
     }
   ],
-  "r2_buckets": [
-    {
-      "binding": "R2",
-      "bucket_name": "monieplans-uploads"
-    }
-  ],
+    "r2_buckets": [
+      {
+        "bucket_name": "monieplans-uploads",
+        "binding": "monieplans_uploads"
+      }
+    ],
   "queues": {
     "producers": [
-      { "queue": "receipt-processing", "binding": "RECEIPT_PROCESSING" },
-      { "queue": "statement-processing", "binding": "STATEMENT_PROCESSING" }
+      { "queue": "receipt-processing", "binding": "receipt_processing" },
+      { "queue": "statement-processing", "binding": "statement_processing" }
     ],
     "consumers": [
       { "queue": "receipt-processing" },

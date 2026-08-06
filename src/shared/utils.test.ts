@@ -24,7 +24,7 @@ describe('utils', () => {
   describe('toCents / fromCents', () => {
     it('converts decimal to cents', () => {
       expect(toCents(10)).toBe(1000);
-      expect(toCents(10.50)).toBe(1050);
+      expect(toCents(10.5)).toBe(1050);
       expect(toCents(0.01)).toBe(1);
       expect(toCents(0)).toBe(0);
     });
@@ -42,7 +42,7 @@ describe('utils', () => {
     });
 
     it('is reversible', () => {
-      const amounts = [0, 1, 10.50, 100, 999.99, 1500.75];
+      const amounts = [0, 1, 10.5, 100, 999.99, 1500.75];
       for (const amount of amounts) {
         expect(fromCents(toCents(amount))).toBeCloseTo(amount, 2);
       }

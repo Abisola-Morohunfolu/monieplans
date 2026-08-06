@@ -11,7 +11,9 @@ export const budgetsRouter = new Hono();
 budgetsRouter.post('/', validateJson(createBudgetSchema), async (c) => {
   const user = c.get('user');
   const db = c.get('db');
-  const body = c.get('body') as unknown as ReturnType<typeof createBudgetSchema.parse>;
+  const body = c.get('body') as unknown as ReturnType<
+    typeof createBudgetSchema.parse
+  >;
   const now = nowISO();
   const status = body.activateImmediately ? 'active' : 'draft';
 
@@ -26,8 +28,14 @@ budgetsRouter.post('/', validateJson(createBudgetSchema), async (c) => {
         cycleType: body.cycleType ?? 'calendar_month',
         presetMonth: body.presetMonth,
         planningMode: body.planningMode,
-        monthlyIncomeAmountCents: body.monthlyIncomeAmount != null ? toCents(body.monthlyIncomeAmount) : null,
-        monthlyBudgetCapAmountCents: body.monthlyBudgetCapAmount != null ? toCents(body.monthlyBudgetCapAmount) : null,
+        monthlyIncomeAmountCents:
+          body.monthlyIncomeAmount != null
+            ? toCents(body.monthlyIncomeAmount)
+            : null,
+        monthlyBudgetCapAmountCents:
+          body.monthlyBudgetCapAmount != null
+            ? toCents(body.monthlyBudgetCapAmount)
+            : null,
         currency: body.currency,
         notes: body.notes,
         status,
@@ -37,7 +45,8 @@ budgetsRouter.post('/', validateJson(createBudgetSchema), async (c) => {
       .returning();
 
     if (body.activateImmediately) {
-      const totalCents = p.monthlyBudgetCapAmountCents ?? p.monthlyIncomeAmountCents ?? 0;
+      const totalCents =
+        p.monthlyBudgetCapAmountCents ?? p.monthlyIncomeAmountCents ?? 0;
       const totalAmount = fromCents(totalCents);
       await generateWeeklyAllocations(
         tx,
@@ -75,7 +84,12 @@ budgetsRouter.get('/active', async (c) => {
   const [period] = await db
     .select()
     .from(schema.budgetPeriods)
-    .where(and(eq(schema.budgetPeriods.userId, user.id), eq(schema.budgetPeriods.status, 'active')))
+    .where(
+      and(
+        eq(schema.budgetPeriods.userId, user.id),
+        eq(schema.budgetPeriods.status, 'active'),
+      ),
+    )
     .orderBy(desc(schema.budgetPeriods.periodStartDate))
     .limit(1);
 
@@ -85,39 +99,59 @@ budgetsRouter.get('/active', async (c) => {
 budgetsRouter.get('/:id', async (c) => {
   const user = c.get('user');
   const db = c.get('db');
-  const id = c.req.param('id')!;
+  const id = c.req.param('id');
 
   const [period] = await db
     .select()
     .from(schema.budgetPeriods)
-    .where(and(eq(schema.budgetPeriods.userId, user.id), eq(schema.budgetPeriods.id, id)));
+    .where(
+      and(
+        eq(schema.budgetPeriods.userId, user.id),
+        eq(schema.budgetPeriods.id, id),
+      ),
+    );
 
-  if (!period) throw new HTTPException(404, { message: 'Budget period not found' });
+  if (!period)
+    throw new HTTPException(404, { message: 'Budget period not found' });
   return c.json(period);
 });
 
 budgetsRouter.post('/:id/activate', async (c) => {
   const user = c.get('user');
   const db = c.get('db');
-  const id = c.req.param('id')!;
+  const id = c.req.param('id');
   const now = nowISO();
 
   const [period] = await db
     .select()
     .from(schema.budgetPeriods)
-    .where(and(eq(schema.budgetPeriods.userId, user.id), eq(schema.budgetPeriods.id, id)));
+    .where(
+      and(
+        eq(schema.budgetPeriods.userId, user.id),
+        eq(schema.budgetPeriods.id, id),
+      ),
+    );
 
-  if (!period) throw new HTTPException(404, { message: 'Budget period not found' });
+  if (!period)
+    throw new HTTPException(404, { message: 'Budget period not found' });
   if (period.status === 'active') return c.json(period);
 
   const result = await db.transaction(async (tx) => {
     const [updated] = await tx
       .update(schema.budgetPeriods)
       .set({ status: 'active', updatedAt: now })
-      .where(and(eq(schema.budgetPeriods.userId, user.id), eq(schema.budgetPeriods.id, id)))
+      .where(
+        and(
+          eq(schema.budgetPeriods.userId, user.id),
+          eq(schema.budgetPeriods.id, id),
+        ),
+      )
       .returning();
 
-    const totalCents = updated.monthlyBudgetCapAmountCents ?? updated.monthlyIncomeAmountCents ?? 0;
+    const totalCents =
+      updated.monthlyBudgetCapAmountCents ??
+      updated.monthlyIncomeAmountCents ??
+      0;
     const totalAmount = fromCents(totalCents);
 
     await reserveGoalsInBudget(tx, user.id, id, totalAmount);
@@ -144,20 +178,31 @@ budgetsRouter.post('/:id/activate', async (c) => {
 budgetsRouter.post('/:id/lock', async (c) => {
   const user = c.get('user');
   const db = c.get('db');
-  const id = c.req.param('id')!;
+  const id = c.req.param('id');
   const now = nowISO();
 
   const [period] = await db
     .select()
     .from(schema.budgetPeriods)
-    .where(and(eq(schema.budgetPeriods.userId, user.id), eq(schema.budgetPeriods.id, id)));
+    .where(
+      and(
+        eq(schema.budgetPeriods.userId, user.id),
+        eq(schema.budgetPeriods.id, id),
+      ),
+    );
 
-  if (!period) throw new HTTPException(404, { message: 'Budget period not found' });
+  if (!period)
+    throw new HTTPException(404, { message: 'Budget period not found' });
 
   const [updated] = await db
     .update(schema.budgetPeriods)
     .set({ status: 'locked', lockedAt: now, updatedAt: now })
-    .where(and(eq(schema.budgetPeriods.userId, user.id), eq(schema.budgetPeriods.id, id)))
+    .where(
+      and(
+        eq(schema.budgetPeriods.userId, user.id),
+        eq(schema.budgetPeriods.id, id),
+      ),
+    )
     .returning();
 
   return c.json(updated);
@@ -182,14 +227,18 @@ async function generateWeeklyAllocations(
   const currentStart = new Date(start.getTime());
 
   while (currentStart <= end) {
-    const currentEnd = new Date(currentStart.getTime() + 6 * 24 * 60 * 60 * 1000);
+    const currentEnd = new Date(
+      currentStart.getTime() + 6 * 24 * 60 * 60 * 1000,
+    );
     let finalEnd = currentEnd;
     if (currentEnd > end) {
       finalEnd = new Date(end.getTime());
     }
 
     const days =
-      Math.round((finalEnd.getTime() - currentStart.getTime()) / (24 * 60 * 60 * 1000)) + 1;
+      Math.round(
+        (finalEnd.getTime() - currentStart.getTime()) / (24 * 60 * 60 * 1000),
+      ) + 1;
     weeks.push({
       start: new Date(currentStart.getTime()),
       end: new Date(finalEnd.getTime()),
@@ -213,7 +262,8 @@ async function generateWeeklyAllocations(
     let plannedAmount = 0;
 
     if (strategy === 'calendar_aware') {
-      plannedAmount = Math.round(spendableAmount * (week.days / totalDays) * 100) / 100;
+      plannedAmount =
+        Math.round(spendableAmount * (week.days / totalDays) * 100) / 100;
     } else {
       plannedAmount = Math.round((spendableAmount / totalWeeks) * 100) / 100;
     }
@@ -294,7 +344,10 @@ async function reserveGoalsInBudget(
       const today = new Date();
       const target = new Date(goal.targetDate);
       const msPerMonth = 1000 * 60 * 60 * 24 * 30.44;
-      const monthsLeft = Math.max(1, Math.round((target.getTime() - today.getTime()) / msPerMonth));
+      const monthsLeft = Math.max(
+        1,
+        Math.round((target.getTime() - today.getTime()) / msPerMonth),
+      );
 
       recommendedAmount = Math.round((remaining / monthsLeft) * 100) / 100;
 
@@ -321,7 +374,10 @@ async function reserveGoalsInBudget(
         updatedAt: nowISO(),
       })
       .onConflictDoUpdate({
-        target: [schema.goalBudgetReservations.budgetPeriodId, schema.goalBudgetReservations.goalId],
+        target: [
+          schema.goalBudgetReservations.budgetPeriodId,
+          schema.goalBudgetReservations.goalId,
+        ],
         set: {
           reservedAmountCents: toCents(recommendedAmount),
           recommendedAmountCents: toCents(recommendedAmount),
@@ -338,11 +394,20 @@ async function reserveGoalsInBudget(
   return reservations;
 }
 
-async function getTotalReservedCents(tx: any, budgetPeriodId: string): Promise<number> {
+async function getTotalReservedCents(
+  tx: any,
+  budgetPeriodId: string,
+): Promise<number> {
   const rows = await tx
-    .select({ reservedAmountCents: schema.goalBudgetReservations.reservedAmountCents })
+    .select({
+      reservedAmountCents: schema.goalBudgetReservations.reservedAmountCents,
+    })
     .from(schema.goalBudgetReservations)
     .where(eq(schema.goalBudgetReservations.budgetPeriodId, budgetPeriodId));
 
-  return rows.reduce((sum: number, r: { reservedAmountCents: number }) => sum + (r.reservedAmountCents ?? 0), 0);
+  return rows.reduce(
+    (sum: number, r: { reservedAmountCents: number }) =>
+      sum + (r.reservedAmountCents ?? 0),
+    0,
+  );
 }

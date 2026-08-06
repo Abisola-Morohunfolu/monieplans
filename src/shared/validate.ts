@@ -12,7 +12,9 @@ export function validateJson<T>(schema: z.ZodSchema<T>) {
     } catch (err) {
       if (err instanceof ZodError) {
         throw new HTTPException(400, {
-          message: err.errors.map((e) => `${e.path.join('.')}: ${e.message}`).join(', '),
+          message: err.errors
+            .map((e) => `${e.path.join('.')}: ${e.message}`)
+            .join(', '),
         });
       }
       throw err;
@@ -30,7 +32,9 @@ export function validateQuery<T>(schema: z.ZodSchema<T>) {
     } catch (err) {
       if (err instanceof ZodError) {
         throw new HTTPException(400, {
-          message: err.errors.map((e) => `${e.path.join('.')}: ${e.message}`).join(', '),
+          message: err.errors
+            .map((e) => `${e.path.join('.')}: ${e.message}`)
+            .join(', '),
         });
       }
       throw err;

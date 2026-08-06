@@ -19,9 +19,15 @@ export const budgetPeriods = sqliteTable(
     currency: text('currency').notNull().default('NGN'),
     notes: text('notes'),
     status: text('status').notNull().default('draft'),
-    createdAt: text('created_at').notNull().default(sql`CURRENT_TIMESTAMP`),
-    updatedAt: text('updated_at').notNull().default(sql`CURRENT_TIMESTAMP`),
+    createdAt: text('created_at')
+      .notNull()
+      .default(sql`CURRENT_TIMESTAMP`),
+    updatedAt: text('updated_at')
+      .notNull()
+      .default(sql`CURRENT_TIMESTAMP`),
     lockedAt: text('locked_at'),
   },
-  (t) => [unique('uq_budget_periods_user_date').on(t.userId, t.periodStartDate)],
+  (t) => [
+    unique('uq_budget_periods_user_date').on(t.userId, t.periodStartDate),
+  ],
 );

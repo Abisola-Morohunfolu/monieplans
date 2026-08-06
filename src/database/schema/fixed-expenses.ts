@@ -15,13 +15,22 @@ export const fixedExpenseTemplates = sqliteTable('fixed_expense_templates', {
   cadence: text('cadence').notNull().default('every_period'),
   defaultDueDay: integer('default_due_day'),
   isActive: integer('is_active', { mode: 'boolean' }).notNull().default(true),
-  isMandatory: integer('is_mandatory', { mode: 'boolean' }).notNull().default(false),
-  isProtectedFromCutRecommendations: integer('is_protected_from_cut_recommendations', { mode: 'boolean' })
+  isMandatory: integer('is_mandatory', { mode: 'boolean' })
+    .notNull()
+    .default(false),
+  isProtectedFromCutRecommendations: integer(
+    'is_protected_from_cut_recommendations',
+    { mode: 'boolean' },
+  )
     .notNull()
     .default(false),
   notes: text('notes'),
-  createdAt: text('created_at').notNull().default(sql`CURRENT_TIMESTAMP`),
-  updatedAt: text('updated_at').notNull().default(sql`CURRENT_TIMESTAMP`),
+  createdAt: text('created_at')
+    .notNull()
+    .default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: text('updated_at')
+    .notNull()
+    .default(sql`CURRENT_TIMESTAMP`),
 });
 
 export const fixedExpenseItems = sqliteTable('fixed_expense_items', {
@@ -41,11 +50,20 @@ export const fixedExpenseItems = sqliteTable('fixed_expense_items', {
   dueDate: text('due_date'),
   originType: text('origin_type').notNull().default('one_off'),
   inclusionStatus: text('inclusion_status').notNull().default('included'),
-  isMandatory: integer('is_mandatory', { mode: 'boolean' }).notNull().default(false),
-  isProtectedFromCutRecommendations: integer('is_protected_from_cut_recommendations', { mode: 'boolean' })
+  isMandatory: integer('is_mandatory', { mode: 'boolean' })
+    .notNull()
+    .default(false),
+  isProtectedFromCutRecommendations: integer(
+    'is_protected_from_cut_recommendations',
+    { mode: 'boolean' },
+  )
     .notNull()
     .default(false),
   notes: text('notes'),
-  createdAt: text('created_at').notNull().default(sql`CURRENT_TIMESTAMP`),
-  updatedAt: text('updated_at').notNull().default(sql`CURRENT_TIMESTAMP`),
+  createdAt: text('created_at')
+    .notNull()
+    .default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: text('updated_at')
+    .notNull()
+    .default(sql`CURRENT_TIMESTAMP`),
 });

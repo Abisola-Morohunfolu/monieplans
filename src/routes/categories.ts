@@ -11,7 +11,12 @@ categoriesRouter.get('/', async (c) => {
   const categories = await db
     .select()
     .from(schema.categories)
-    .where(or(isNull(schema.categories.userId), eq(schema.categories.userId, user.id)));
+    .where(
+      or(
+        isNull(schema.categories.userId),
+        eq(schema.categories.userId, user.id),
+      ),
+    );
 
   return c.json(categories);
 });

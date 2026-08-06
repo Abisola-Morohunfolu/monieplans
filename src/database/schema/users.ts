@@ -16,6 +16,10 @@ export const userProfiles = sqliteTable('user_profiles', {
     .notNull()
     .default('calendar_month'),
   weekStartDay: text('week_start_day').notNull().default('monday'),
-  createdAt: text('created_at').notNull().default(sql`CURRENT_TIMESTAMP`),
-  updatedAt: text('updated_at').notNull().default(sql`CURRENT_TIMESTAMP`),
+  createdAt: text('created_at')
+    .notNull()
+    .default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: text('updated_at')
+    .notNull()
+    .default(sql`CURRENT_TIMESTAMP`),
 });
