@@ -1,5 +1,6 @@
 import { betterAuth } from 'better-auth';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
+import { dash } from '@better-auth/infra';
 import { drizzle } from 'drizzle-orm/d1';
 import * as schema from '../database/schema';
 
@@ -94,6 +95,7 @@ export function getAuth(env: AuthEnv): AuthCache {
       },
     },
     trustedOrigins,
+    plugins: [dash()],
   });
 
   cached = { auth, db };
