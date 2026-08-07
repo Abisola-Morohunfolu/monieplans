@@ -23,13 +23,14 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@better-auth/core": "^1.6.26",
     "@better-auth/infra": "^0.3.7",
     "@hono/node-server": "^1.13.7",
     "@llamaindex/llama-cloud": "^2.13.0",
     "better-auth": "^1.6.20",
     "drizzle-orm": "^0.45.2",
     "hono": "^4.6.14",
-    "zod": "^3.24.1"
+    "zod": "^4.1.12"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20250922.0",
