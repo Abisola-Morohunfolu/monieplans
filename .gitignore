@@ -16,3 +16,8 @@ dist
 .yarn/install-state.gz
 coverage/
 .wrangler/
+
+# Local secrets (never commit)
+.dev.vars
+.env
+frontend/.env
