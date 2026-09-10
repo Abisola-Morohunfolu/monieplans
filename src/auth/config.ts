@@ -31,10 +31,11 @@ export interface AuthInstance {
   };
 }
 
-const trustedOrigins = [
+export const allowedOrigins = [
   'http://localhost:3000',
   'http://localhost:5173',
   'http://localhost:5174',
+  'https://monieplans.amorohunfolu.workers.dev',
 ];
 
 export function createAuth(
@@ -90,7 +91,7 @@ export function createAuth(
         clientSecret: env.GITHUB_CLIENT_SECRET || '',
       },
     },
-    trustedOrigins,
+    trustedOrigins: allowedOrigins,
     plugins: [dash()],
   });
 }

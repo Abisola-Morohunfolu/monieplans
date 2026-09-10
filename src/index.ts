@@ -2,6 +2,7 @@ import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { HTTPException } from 'hono/http-exception';
 import { getAuth } from './auth';
+import { allowedOrigins } from './auth/config';
 import { authMiddleware } from './shared/middleware';
 import { usersRouter } from './routes/users';
 import { categoriesRouter } from './routes/categories';
@@ -34,7 +35,7 @@ const app = new Hono<{ Bindings: Env }>();
 app.use(
   '*',
   cors({
-    origin: '*',
+    origin: allowedOrigins,
     credentials: true,
     allowHeaders: ['Content-Type', 'Authorization'],
     allowMethods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
