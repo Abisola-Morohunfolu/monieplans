@@ -20,6 +20,7 @@
         "binding": "R2"
       }
     ],
+    "send_email": [{ "name": "EMAIL" }],
   "queues": {
     "producers": [
       { "queue": "receipt-processing", "binding": "RECEIPT_PROCESSING" },
