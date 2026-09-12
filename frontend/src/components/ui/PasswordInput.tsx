@@ -1,4 +1,5 @@
 import { forwardRef, useState, type InputHTMLAttributes } from 'react'
+import { inputClasses } from './Input'
 
 interface PasswordInputProps extends InputHTMLAttributes<HTMLInputElement> {
   label?: string
@@ -23,18 +24,12 @@ export const PasswordInput = forwardRef<HTMLInputElement, PasswordInputProps>(
             id={inputId}
             type={show ? 'text' : 'password'}
             autoComplete={props.autoComplete || 'current-password'}
-            className={`w-full py-3 px-4 pr-12 rounded-xl border border-text-primary/12 bg-bg-lightest/60 font-sans text-sm leading-relaxed text-text-primary outline-none transition-[border-color,box-shadow] duration-200 placeholder:text-text-tertiary focus:border-text-primary/20 focus:shadow-[0_0_0_2px_var(--color-bg-card),0_0_0_4px_rgba(142,156,117,0.6)] ${className}`}
+            className={`${inputClasses} pr-12 ${className}`}
             {...props}
           />
           <button
             type="button"
-            onClick={() => {
-              setShow((s) => !s)
-              setTimeout(() => {
-                const el = document.getElementById(inputId)
-                if (el) (el as HTMLInputElement).focus()
-              })
-            }}
+            onClick={() => setShow((s) => !s)}
             className="absolute top-0 right-1 bottom-0 flex items-center px-3 bg-transparent border-none cursor-pointer text-text-tertiary transition-colors duration-200 hover:text-text-secondary focus-visible:outline-2 focus-visible:outline-sage focus-visible:-outline-offset-2 focus-visible:rounded-lg"
             aria-label={show ? 'Hide password' : 'Show password'}
             aria-pressed={show}

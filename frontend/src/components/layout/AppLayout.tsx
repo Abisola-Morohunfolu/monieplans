@@ -1,6 +1,6 @@
-import { Link, Outlet, useRouterState, useNavigate } from '@tanstack/react-router'
+import { Link, Outlet, useRouterState } from '@tanstack/react-router'
 import { LayoutDashboard, Wallet, Receipt, CalendarClock, Target, FileText, Settings, LogOut } from 'lucide-react'
-import { signOut } from '../../lib/auth'
+import { useAuth } from '../../hooks/useAuth'
 
 const navItems = [
   { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -14,12 +14,7 @@ const navItems = [
 
 export function AppLayout() {
   const routerState = useRouterState()
-  const navigate = useNavigate()
-
-  const handleLogout = async () => {
-    await signOut()
-    navigate({ to: '/login' })
-  }
+  const { user, signOut } = useAuth()
 
   return (
     <div className="flex h-screen bg-bg-base text-text-primary overflow-hidden">
@@ -54,9 +49,22 @@ export function AppLayout() {
           })}
         </nav>
 
-        <div className="p-4 mt-auto">
+        <div className="p-4 mt-auto space-y-1.5">
+          {user && (
+            <div className="flex items-center gap-3 px-4 py-3 rounded-2xl">
+              <div className="w-9 h-9 rounded-full bg-forest text-bg-base flex items-center justify-center text-sm font-semibold shrink-0">
+                {user.name?.charAt(0)?.toUpperCase() || user.email?.charAt(0)?.toUpperCase() || 'M'}
+              </div>
+              <div className="min-w-0">
+                <p className="text-sm font-medium text-text-primary truncate">
+                  {user.name || user.email}
+                </p>
+                <p className="text-xs text-text-tertiary truncate">{user.email}</p>
+              </div>
+            </div>
+          )}
           <button
-            onClick={handleLogout}
+            onClick={() => signOut()}
             className="flex items-center gap-3 px-4 py-3 w-full rounded-2xl text-text-secondary hover:bg-rust/10 hover:text-rust transition-colors"
           >
             <LogOut className="w-5 h-5" />
