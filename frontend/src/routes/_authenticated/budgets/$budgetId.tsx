@@ -1,6 +1,8 @@
 import { createFileRoute, Link } from '@tanstack/react-router'
 import { Wallet, Lock, CheckCircle, ArrowLeft, CalendarClock, DollarSign, Target } from 'lucide-react'
 import { useBudget, useActivateBudget, useLockBudget } from '../../../hooks/useBudget'
+import { usePreferredCurrency } from '../../../hooks/useCurrency'
+import { formatCurrency } from '../../../lib/currency'
 
 export const Route = createFileRoute('/_authenticated/budgets/$budgetId')({
   component: BudgetDetailsPage,
@@ -11,6 +13,7 @@ function BudgetDetailsPage() {
   const { data: budget, isLoading } = useBudget(budgetId)
   const activateMutation = useActivateBudget(budgetId)
   const lockMutation = useLockBudget(budgetId)
+  const currency = usePreferredCurrency()
 
   const statusBadge = (status: string) => {
     switch (status) {
@@ -93,14 +96,14 @@ function BudgetDetailsPage() {
             <DollarSign className="w-5 h-5" />
             <h3 className="font-medium">Total Cap</h3>
           </div>
-          <p className="font-heading text-3xl font-medium text-text-primary">${Number(budget.cap).toLocaleString()}</p>
+          <p className="font-heading text-3xl font-medium text-text-primary">{formatCurrency(Number(budget.cap), budget.currency ?? currency)}</p>
         </div>
         <div className="card">
           <div className="flex items-center gap-3 mb-4 text-text-tertiary">
             <Wallet className="w-5 h-5" />
             <h3 className="font-medium">Income</h3>
           </div>
-          <p className="font-heading text-3xl font-medium text-text-primary">${Number(budget.income).toLocaleString()}</p>
+          <p className="font-heading text-3xl font-medium text-text-primary">{formatCurrency(Number(budget.income), budget.currency ?? currency)}</p>
         </div>
         <div className="card">
           <div className="flex items-center gap-3 mb-4 text-text-tertiary">

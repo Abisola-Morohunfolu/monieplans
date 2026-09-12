@@ -1,6 +1,8 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { Target, Plus, Archive } from 'lucide-react'
 import { useGoals, useDeleteGoal } from '../../../hooks/useGoals'
+import { usePreferredCurrency } from '../../../hooks/useCurrency'
+import { formatCurrency } from '../../../lib/currency'
 
 export const Route = createFileRoute('/_authenticated/goals/')({
   component: GoalsPage,
@@ -9,6 +11,7 @@ export const Route = createFileRoute('/_authenticated/goals/')({
 function GoalsPage() {
   const { data: goals, isLoading } = useGoals()
   const deleteGoal = useDeleteGoal()
+  const currency = usePreferredCurrency()
 
   const handleArchive = (id: string) => {
     if (window.confirm('Archive this goal?')) {
@@ -70,8 +73,8 @@ function GoalsPage() {
               </div>
               <h3 className="font-heading font-semibold text-lg text-text-primary mb-1">{goal.name}</h3>
               <div className="flex justify-between items-baseline mb-3">
-                <p className="text-2xl font-semibold text-text-primary">${Number(goal.currentAmount).toFixed(2)}</p>
-                <p className="text-sm text-text-tertiary">of ${Number(goal.targetAmount).toFixed(2)}</p>
+                <p className="text-2xl font-semibold text-text-primary">{formatCurrency(Number(goal.currentAmount), currency)}</p>
+                <p className="text-sm text-text-tertiary">of {formatCurrency(Number(goal.targetAmount), currency)}</p>
               </div>
               <div className="w-full bg-text-primary/8 rounded-full h-2 mb-2">
                 <div

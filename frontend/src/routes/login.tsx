@@ -114,8 +114,11 @@ function LoginPage() {
 
         <div className="mt-2 flex justify-end">
           <a
-            href="#"
-            onClick={(e) => e.preventDefault()}
+            href="/forgot-password"
+            onClick={(e) => {
+              e.preventDefault()
+              navigate({ to: '/forgot-password' })
+            }}
             className="text-xs leading-relaxed text-sage no-underline hover:underline focus-visible:outline-2 focus-visible:outline-sage focus-visible:outline-offset-3 focus-visible:rounded"
           >
             Forgot password?

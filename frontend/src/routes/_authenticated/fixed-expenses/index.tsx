@@ -1,6 +1,8 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { CalendarClock, Plus, Pencil, Trash2 } from 'lucide-react'
 import { useFixedExpenseTemplates, useDeleteFixedExpenseTemplate } from '../../../hooks/useFixedExpenses'
+import { usePreferredCurrency } from '../../../hooks/useCurrency'
+import { formatCurrency } from '../../../lib/currency'
 
 export const Route = createFileRoute('/_authenticated/fixed-expenses/')({
   component: FixedExpensesPage,
@@ -9,6 +11,7 @@ export const Route = createFileRoute('/_authenticated/fixed-expenses/')({
 function FixedExpensesPage() {
   const { data: templates, isLoading } = useFixedExpenseTemplates()
   const deleteTemplate = useDeleteFixedExpenseTemplate()
+  const currency = usePreferredCurrency()
 
   const handleDelete = (id: string) => {
     if (window.confirm('Delete this fixed expense template?')) {
@@ -68,7 +71,7 @@ function FixedExpensesPage() {
                 </div>
               </div>
               <h3 className="font-heading font-semibold text-lg text-text-primary mb-1">{template.name}</h3>
-              <p className="text-2xl font-semibold text-text-primary mb-2">${Number(template.amount).toFixed(2)}</p>
+              <p className="text-2xl font-semibold text-text-primary mb-2">{formatCurrency(Number(template.amount), currency)}</p>
               <div className="flex items-center gap-2">
                 <span className="badge-sage capitalize">{template.frequency}</span>
                 {template.categoryName && (

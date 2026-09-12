@@ -6,6 +6,7 @@ export interface Budget {
   cap: number
   income: number
   planningMode: string
+  currency?: string
   createdAt: string
   updatedAt: string
 }

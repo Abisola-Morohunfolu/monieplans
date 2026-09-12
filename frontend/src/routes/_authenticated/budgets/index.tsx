@@ -1,6 +1,8 @@
 import { createFileRoute, Link } from '@tanstack/react-router'
 import { Plus, Wallet, Lock, CheckCircle } from 'lucide-react'
 import { useBudgets } from '../../../hooks/useBudgets'
+import { usePreferredCurrency } from '../../../hooks/useCurrency'
+import { formatCurrency } from '../../../lib/currency'
 
 export const Route = createFileRoute('/_authenticated/budgets/')({
   component: BudgetsPage,
@@ -8,6 +10,7 @@ export const Route = createFileRoute('/_authenticated/budgets/')({
 
 function BudgetsPage() {
   const { data: budgets, isLoading } = useBudgets()
+  const currency = usePreferredCurrency()
 
   const statusBadge = (status: string) => {
     switch (status) {
@@ -58,11 +61,11 @@ function BudgetsPage() {
                 <div className="flex justify-between items-end border-t border-text-primary/8 pt-4 mt-4">
                   <div>
                     <p className="text-xs text-text-tertiary mb-1">Cap</p>
-                    <p className="font-semibold text-text-primary">${Number(budget.cap).toLocaleString()}</p>
+                    <p className="font-semibold text-text-primary">{formatCurrency(Number(budget.cap), budget.currency ?? currency)}</p>
                   </div>
                   <div className="text-right">
                     <p className="text-xs text-text-tertiary mb-1">Income</p>
-                    <p className="font-medium text-text-secondary">${Number(budget.income).toLocaleString()}</p>
+                    <p className="font-medium text-text-secondary">{formatCurrency(Number(budget.income), budget.currency ?? currency)}</p>
                   </div>
                 </div>
               </div>

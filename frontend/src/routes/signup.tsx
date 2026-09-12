@@ -64,6 +64,7 @@ function SignupPage() {
         name,
         email,
         password,
+        callbackURL: `${window.location.origin}/dashboard`,
       })
       if (result.error) {
         setError(result.error.message || 'Sign up failed')
@@ -85,7 +86,7 @@ function SignupPage() {
     try {
       await sendVerificationEmail({
         email,
-        callbackURL: '/dashboard',
+        callbackURL: `${window.location.origin}/dashboard`,
       })
     } catch {
       setError('Failed to resend verification email.')
