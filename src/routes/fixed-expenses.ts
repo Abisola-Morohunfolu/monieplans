@@ -9,6 +9,7 @@ import {
   updateFixedExpenseTemplateSchema,
 } from '../shared/schemas';
 import { validateJson } from '../shared/validate';
+import { assertCategoryVisible, getBudgetPeriodOrThrow } from './helpers';
 
 export const fixedExpensesRouter = new Hono();
 
@@ -23,12 +24,7 @@ fixedExpensesRouter.post(
     >;
 
     if (body.categoryId) {
-      const [category] = await db
-        .select()
-        .from(schema.categories)
-        .where(eq(schema.categories.id, body.categoryId));
-      if (!category)
-        throw new HTTPException(404, { message: 'Category not found' });
+      await assertCategoryVisible(db, user.id, body.categoryId);
     }
 
     const [template] = await db
@@ -145,12 +141,7 @@ fixedExpensesRouter.patch(
       });
 
     if (body.categoryId) {
-      const [category] = await db
-        .select()
-        .from(schema.categories)
-        .where(eq(schema.categories.id, body.categoryId));
-      if (!category)
-        throw new HTTPException(404, { message: 'Category not found' });
+      await assertCategoryVisible(db, user.id, body.categoryId);
     }
 
     const [updated] = await db
@@ -213,18 +204,11 @@ fixedExpensesRouter.post('/generate-items/:budgetPeriodId', async (c) => {
   const db = c.get('db');
   const budgetPeriodId = c.req.param('budgetPeriodId');
 
-  const [budgetPeriod] = await db
-    .select()
-    .from(schema.budgetPeriods)
-    .where(
-      and(
-        eq(schema.budgetPeriods.id, budgetPeriodId),
-        eq(schema.budgetPeriods.userId, user.id),
-      ),
-    );
-
-  if (!budgetPeriod)
-    throw new HTTPException(404, { message: 'Budget period not found' });
+  const budgetPeriod = await getBudgetPeriodOrThrow(
+    db,
+    user.id,
+    budgetPeriodId,
+  );
 
   const activeTemplates = await db
     .select()
