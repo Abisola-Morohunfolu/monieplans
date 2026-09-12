@@ -3,6 +3,7 @@ import { HTTPException } from 'hono/http-exception';
 import { and, desc, eq } from 'drizzle-orm';
 import * as schema from '../database/schema';
 import { generateId, nowISO, toCents } from '../shared/utils';
+import { serializeFixedExpenseTemplate } from '../shared/serializers';
 import {
   createFixedExpenseTemplateSchema,
   updateFixedExpenseTemplateSchema,
@@ -50,7 +51,7 @@ fixedExpensesRouter.post(
       })
       .returning();
 
-    return c.json(template, 201);
+    return c.json(serializeFixedExpenseTemplate(template), 201);
   },
 );
 
@@ -59,12 +60,26 @@ fixedExpensesRouter.get('/templates', async (c) => {
   const db = c.get('db');
 
   const templates = await db
-    .select()
+    .select({
+      id: schema.fixedExpenseTemplates.id,
+      name: schema.fixedExpenseTemplates.name,
+      amountCents: schema.fixedExpenseTemplates.amountCents,
+      categoryId: schema.fixedExpenseTemplates.categoryId,
+      categoryName: schema.categories.name,
+      cadence: schema.fixedExpenseTemplates.cadence,
+      defaultDueDay: schema.fixedExpenseTemplates.defaultDueDay,
+      createdAt: schema.fixedExpenseTemplates.createdAt,
+      updatedAt: schema.fixedExpenseTemplates.updatedAt,
+    })
     .from(schema.fixedExpenseTemplates)
+    .leftJoin(
+      schema.categories,
+      eq(schema.fixedExpenseTemplates.categoryId, schema.categories.id),
+    )
     .where(eq(schema.fixedExpenseTemplates.userId, user.id))
     .orderBy(desc(schema.fixedExpenseTemplates.createdAt));
 
-  return c.json(templates);
+  return c.json(templates.map(serializeFixedExpenseTemplate));
 });
 
 fixedExpensesRouter.get('/templates/:id', async (c) => {
@@ -73,8 +88,22 @@ fixedExpensesRouter.get('/templates/:id', async (c) => {
   const id = c.req.param('id');
 
   const [template] = await db
-    .select()
+    .select({
+      id: schema.fixedExpenseTemplates.id,
+      name: schema.fixedExpenseTemplates.name,
+      amountCents: schema.fixedExpenseTemplates.amountCents,
+      categoryId: schema.fixedExpenseTemplates.categoryId,
+      categoryName: schema.categories.name,
+      cadence: schema.fixedExpenseTemplates.cadence,
+      defaultDueDay: schema.fixedExpenseTemplates.defaultDueDay,
+      createdAt: schema.fixedExpenseTemplates.createdAt,
+      updatedAt: schema.fixedExpenseTemplates.updatedAt,
+    })
     .from(schema.fixedExpenseTemplates)
+    .leftJoin(
+      schema.categories,
+      eq(schema.fixedExpenseTemplates.categoryId, schema.categories.id),
+    )
     .where(
       and(
         eq(schema.fixedExpenseTemplates.userId, user.id),
@@ -86,7 +115,7 @@ fixedExpensesRouter.get('/templates/:id', async (c) => {
     throw new HTTPException(404, {
       message: 'Fixed expense template not found',
     });
-  return c.json(template);
+  return c.json(serializeFixedExpenseTemplate(template));
 });
 
 fixedExpensesRouter.patch(
@@ -143,7 +172,7 @@ fixedExpensesRouter.patch(
       .where(eq(schema.fixedExpenseTemplates.id, id))
       .returning();
 
-    return c.json(updated);
+    return c.json(serializeFixedExpenseTemplate(updated));
   },
 );
 
@@ -209,38 +238,36 @@ fixedExpensesRouter.post('/generate-items/:budgetPeriodId', async (c) => {
 
   if (activeTemplates.length === 0) return c.json([]);
 
-  return db.transaction(async (tx) => {
-    const itemsToInsert = activeTemplates.map((t) => {
-      let dueDate: string | null = null;
-      if (t.defaultDueDay && budgetPeriod.periodStartDate) {
-        const d = new Date(budgetPeriod.periodStartDate);
-        d.setDate(t.defaultDueDay);
-        dueDate = d.toISOString().split('T')[0];
-      }
+  const itemsToInsert = activeTemplates.map((t) => {
+    let dueDate: string | null = null;
+    if (t.defaultDueDay && budgetPeriod.periodStartDate) {
+      const d = new Date(budgetPeriod.periodStartDate);
+      d.setDate(t.defaultDueDay);
+      dueDate = d.toISOString().split('T')[0];
+    }
 
-      return {
-        id: generateId(),
-        userId: user.id,
-        budgetPeriodId,
-        fixedExpenseTemplateId: t.id,
-        name: t.name,
-        categoryId: t.categoryId,
-        amountCents: t.amountCents,
-        dueDate,
-        originType: 'recurring_template',
-        inclusionStatus: 'included',
-        isMandatory: t.isMandatory,
-        isProtectedFromCutRecommendations: t.isProtectedFromCutRecommendations,
-        notes: t.notes,
-        createdAt: nowISO(),
-        updatedAt: nowISO(),
-      };
-    });
-
-    const items = await tx
-      .insert(schema.fixedExpenseItems)
-      .values(itemsToInsert)
-      .returning();
-    return c.json(items, 201);
+    return {
+      id: generateId(),
+      userId: user.id,
+      budgetPeriodId,
+      fixedExpenseTemplateId: t.id,
+      name: t.name,
+      categoryId: t.categoryId,
+      amountCents: t.amountCents,
+      dueDate,
+      originType: 'recurring_template',
+      inclusionStatus: 'included',
+      isMandatory: t.isMandatory,
+      isProtectedFromCutRecommendations: t.isProtectedFromCutRecommendations,
+      notes: t.notes,
+      createdAt: nowISO(),
+      updatedAt: nowISO(),
+    };
   });
+
+  const items = await db
+    .insert(schema.fixedExpenseItems)
+    .values(itemsToInsert)
+    .returning();
+  return c.json(items, 201);
 });

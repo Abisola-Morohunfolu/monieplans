@@ -1,10 +1,18 @@
 import { Hono } from 'hono';
 import { generateId, nowISO, toCents, fromCents } from '../shared/utils';
+import { serializeBudget } from '../shared/serializers';
 import { createBudgetSchema } from '../shared/schemas';
 import { validateJson } from '../shared/validate';
-import { and, desc, eq } from 'drizzle-orm';
+import { and, desc, eq, sql } from 'drizzle-orm';
+import type { BatchItem } from 'drizzle-orm/batch';
+import type { InferSelectModel } from 'drizzle-orm';
+import type { DrizzleD1Database } from 'drizzle-orm/d1';
 import * as schema from '../database/schema';
 import { HTTPException } from 'hono/http-exception';
+
+type D1Query = BatchItem<'sqlite'>;
+type BudgetPeriodRow = InferSelectModel<typeof schema.budgetPeriods>;
+type Db = DrizzleD1Database<typeof schema>;
 
 export const budgetsRouter = new Hono();
 
@@ -16,12 +24,13 @@ budgetsRouter.post('/', validateJson(createBudgetSchema), async (c) => {
   >;
   const now = nowISO();
   const status = body.activateImmediately ? 'active' : 'draft';
+  const periodId = generateId();
 
-  const period = await db.transaction(async (tx) => {
-    const [p] = await tx
+  const queries: D1Query[] = [
+    db
       .insert(schema.budgetPeriods)
       .values({
-        id: generateId(),
+        id: periodId,
         userId: user.id,
         periodStartDate: body.periodStartDate,
         periodEndDate: body.periodEndDate,
@@ -42,26 +51,38 @@ budgetsRouter.post('/', validateJson(createBudgetSchema), async (c) => {
         createdAt: now,
         updatedAt: now,
       })
-      .returning();
+      .returning(),
+  ];
 
-    if (body.activateImmediately) {
-      const totalCents =
-        p.monthlyBudgetCapAmountCents ?? p.monthlyIncomeAmountCents ?? 0;
-      const totalAmount = fromCents(totalCents);
-      await generateWeeklyAllocations(
-        tx,
-        user.id,
-        p.id,
-        p.periodStartDate,
-        p.periodEndDate,
-        totalAmount,
+  if (body.activateImmediately) {
+    const totalCents =
+      body.monthlyBudgetCapAmount != null
+        ? toCents(body.monthlyBudgetCapAmount)
+        : body.monthlyIncomeAmount != null
+          ? toCents(body.monthlyIncomeAmount)
+          : 0;
+    const totalAmount = fromCents(totalCents);
+    const rows = buildWeeklyAllocationRows(
+      user.id,
+      periodId,
+      body.periodStartDate,
+      body.periodEndDate,
+      totalAmount,
+    );
+    if (rows.length > 0) {
+      queries.push(
+        db
+          .insert(schema.weeklyBudgetAllocations)
+          .values(rows)
+          .onConflictDoNothing(),
       );
     }
+  }
 
-    return p;
-  });
+  const results = await db.batch(queries as [D1Query, ...D1Query[]]);
+  const [period] = results[0] as BudgetPeriodRow[];
 
-  return c.json(period, 201);
+  return c.json(serializeBudget(period), 201);
 });
 
 budgetsRouter.get('/', async (c) => {
@@ -74,7 +95,7 @@ budgetsRouter.get('/', async (c) => {
     .where(eq(schema.budgetPeriods.userId, user.id))
     .orderBy(desc(schema.budgetPeriods.periodStartDate));
 
-  return c.json(periods);
+  return c.json(periods.map(serializeBudget));
 });
 
 budgetsRouter.get('/active', async (c) => {
@@ -93,7 +114,7 @@ budgetsRouter.get('/active', async (c) => {
     .orderBy(desc(schema.budgetPeriods.periodStartDate))
     .limit(1);
 
-  return c.json(period ?? null);
+  return c.json(period ? serializeBudget(period) : null);
 });
 
 budgetsRouter.get('/:id', async (c) => {
@@ -113,7 +134,7 @@ budgetsRouter.get('/:id', async (c) => {
 
   if (!period)
     throw new HTTPException(404, { message: 'Budget period not found' });
-  return c.json(period);
+  return c.json(serializeBudget(period));
 });
 
 budgetsRouter.post('/:id/activate', async (c) => {
@@ -134,10 +155,27 @@ budgetsRouter.post('/:id/activate', async (c) => {
 
   if (!period)
     throw new HTTPException(404, { message: 'Budget period not found' });
-  if (period.status === 'active') return c.json(period);
+  if (period.status === 'active') return c.json(serializeBudget(period));
 
-  const result = await db.transaction(async (tx) => {
-    const [updated] = await tx
+  const totalCents =
+    period.monthlyBudgetCapAmountCents ?? period.monthlyIncomeAmountCents ?? 0;
+  const totalAmount = fromCents(totalCents);
+
+  const { values: reservationValues, totalReservedCents } =
+    await buildGoalReservations(db, user.id, id, totalAmount);
+
+  const allocRows = buildWeeklyAllocationRows(
+    user.id,
+    id,
+    period.periodStartDate,
+    period.periodEndDate,
+    totalAmount,
+    'equal_split',
+    totalReservedCents,
+  );
+
+  const queries: D1Query[] = [
+    db
       .update(schema.budgetPeriods)
       .set({ status: 'active', updatedAt: now })
       .where(
@@ -146,33 +184,43 @@ budgetsRouter.post('/:id/activate', async (c) => {
           eq(schema.budgetPeriods.id, id),
         ),
       )
-      .returning();
+      .returning(),
+  ];
 
-    const totalCents =
-      updated.monthlyBudgetCapAmountCents ??
-      updated.monthlyIncomeAmountCents ??
-      0;
-    const totalAmount = fromCents(totalCents);
-
-    await reserveGoalsInBudget(tx, user.id, id, totalAmount);
-
-    const reservedCents = await getTotalReservedCents(tx, id);
-
-    await generateWeeklyAllocations(
-      tx,
-      user.id,
-      updated.id,
-      updated.periodStartDate,
-      updated.periodEndDate,
-      totalAmount,
-      'equal_split',
-      reservedCents,
+  if (reservationValues.length > 0) {
+    queries.push(
+      db
+        .insert(schema.goalBudgetReservations)
+        .values(reservationValues)
+        .onConflictDoUpdate({
+          target: [
+            schema.goalBudgetReservations.budgetPeriodId,
+            schema.goalBudgetReservations.goalId,
+          ],
+          set: {
+            reservedAmountCents: sql`excluded.reserved_amount_cents`,
+            recommendedAmountCents: sql`excluded.recommended_amount_cents`,
+            feasibilityStatus: sql`excluded.feasibility_status`,
+            feasibilityReason: sql`excluded.feasibility_reason`,
+            updatedAt: sql`excluded.updated_at`,
+          },
+        }),
     );
+  }
 
-    return updated;
-  });
+  if (allocRows.length > 0) {
+    queries.push(
+      db
+        .insert(schema.weeklyBudgetAllocations)
+        .values(allocRows)
+        .onConflictDoNothing(),
+    );
+  }
 
-  return c.json(result);
+  const results = await db.batch(queries as [D1Query, ...D1Query[]]);
+  const [updated] = results[0] as BudgetPeriodRow[];
+
+  return c.json(serializeBudget(updated));
 });
 
 budgetsRouter.post('/:id/lock', async (c) => {
@@ -205,11 +253,10 @@ budgetsRouter.post('/:id/lock', async (c) => {
     )
     .returning();
 
-  return c.json(updated);
+  return c.json(serializeBudget(updated));
 });
 
-async function generateWeeklyAllocations(
-  tx: any,
+function buildWeeklyAllocationRows(
   userId: string,
   budgetPeriodId: string,
   startDateStr: string,
@@ -252,11 +299,12 @@ async function generateWeeklyAllocations(
   }
 
   const totalWeeks = weeks.length;
-  if (totalWeeks === 0) return;
+  if (totalWeeks === 0) return [];
 
   const totalDays = weeks.reduce((sum, w) => sum + w.days, 0);
   let allocatedSum = 0;
 
+  const rows = [];
   for (let i = 0; i < totalWeeks; i++) {
     const week = weeks[i];
     let plannedAmount = 0;
@@ -287,36 +335,35 @@ async function generateWeeklyAllocations(
 
     const plannedCents = toCents(plannedAmount);
 
-    await tx
-      .insert(schema.weeklyBudgetAllocations)
-      .values({
-        id: generateId(),
-        budgetPeriodId,
-        userId,
-        weekIndex: i,
-        weekStartDate: startStr,
-        weekEndDate: endStr,
-        allocationStrategy: strategy,
-        plannedAmountCents: plannedCents,
-        adjustmentAmountCents: 0,
-        finalPlannedAmountCents: plannedCents,
-        actualSpentAmountCentsCache: 0,
-        remainingAmountCentsCache: plannedCents,
-        status,
-        createdAt: nowISO(),
-        updatedAt: nowISO(),
-      })
-      .onConflictDoNothing();
+    rows.push({
+      id: generateId(),
+      budgetPeriodId,
+      userId,
+      weekIndex: i,
+      weekStartDate: startStr,
+      weekEndDate: endStr,
+      allocationStrategy: strategy,
+      plannedAmountCents: plannedCents,
+      adjustmentAmountCents: 0,
+      finalPlannedAmountCents: plannedCents,
+      actualSpentAmountCentsCache: 0,
+      remainingAmountCentsCache: plannedCents,
+      status,
+      createdAt: nowISO(),
+      updatedAt: nowISO(),
+    });
   }
+
+  return rows;
 }
 
-async function reserveGoalsInBudget(
-  tx: any,
+async function buildGoalReservations(
+  db: Db,
   userId: string,
   budgetPeriodId: string,
   availableBudget: number,
 ) {
-  const goals = await tx
+  const goals = await db
     .select()
     .from(schema.savingsGoals)
     .where(
@@ -328,9 +375,9 @@ async function reserveGoalsInBudget(
     )
     .orderBy(schema.savingsGoals.priorityRank);
 
-  if (goals.length === 0) return [];
+  const values = [];
+  let totalReservedCents = 0;
 
-  const reservations = [];
   for (const goal of goals) {
     const targetAmount = fromCents(goal.targetAmountCents);
     const currentSaved = fromCents(goal.currentSavedAmountCents);
@@ -360,54 +407,21 @@ async function reserveGoalsInBudget(
       }
     }
 
-    const [reservation] = await tx
-      .insert(schema.goalBudgetReservations)
-      .values({
-        id: generateId(),
-        budgetPeriodId,
-        goalId: goal.id,
-        reservedAmountCents: toCents(recommendedAmount),
-        recommendedAmountCents: toCents(recommendedAmount),
-        feasibilityStatus,
-        feasibilityReason,
-        createdAt: nowISO(),
-        updatedAt: nowISO(),
-      })
-      .onConflictDoUpdate({
-        target: [
-          schema.goalBudgetReservations.budgetPeriodId,
-          schema.goalBudgetReservations.goalId,
-        ],
-        set: {
-          reservedAmountCents: toCents(recommendedAmount),
-          recommendedAmountCents: toCents(recommendedAmount),
-          feasibilityStatus,
-          feasibilityReason,
-          updatedAt: nowISO(),
-        },
-      })
-      .returning();
+    const recommendedCents = toCents(recommendedAmount);
+    totalReservedCents += recommendedCents;
 
-    reservations.push(reservation);
+    values.push({
+      id: generateId(),
+      budgetPeriodId,
+      goalId: goal.id,
+      reservedAmountCents: recommendedCents,
+      recommendedAmountCents: recommendedCents,
+      feasibilityStatus,
+      feasibilityReason,
+      createdAt: nowISO(),
+      updatedAt: nowISO(),
+    });
   }
 
-  return reservations;
-}
-
-async function getTotalReservedCents(
-  tx: any,
-  budgetPeriodId: string,
-): Promise<number> {
-  const rows = await tx
-    .select({
-      reservedAmountCents: schema.goalBudgetReservations.reservedAmountCents,
-    })
-    .from(schema.goalBudgetReservations)
-    .where(eq(schema.goalBudgetReservations.budgetPeriodId, budgetPeriodId));
-
-  return rows.reduce(
-    (sum: number, r: { reservedAmountCents: number }) =>
-      sum + (r.reservedAmountCents ?? 0),
-    0,
-  );
+  return { values, totalReservedCents };
 }
