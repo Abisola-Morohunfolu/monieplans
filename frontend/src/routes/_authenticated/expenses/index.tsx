@@ -2,6 +2,8 @@ import { createFileRoute } from '@tanstack/react-router'
 import { useState } from 'react'
 import { Receipt, Plus, Search, Trash2 } from 'lucide-react'
 import { useExpenses, useCreateExpense, useDeleteExpense } from '../../../hooks/useExpenses'
+import { usePreferredCurrency } from '../../../hooks/useCurrency'
+import { formatCurrency } from '../../../lib/currency'
 
 export const Route = createFileRoute('/_authenticated/expenses/')({
   component: ExpensesPage,
@@ -12,6 +14,7 @@ function ExpensesPage() {
   const { data: expenses, isLoading } = useExpenses()
   const createExpense = useCreateExpense()
   const deleteExpense = useDeleteExpense()
+  const currency = usePreferredCurrency()
 
   const filteredExpenses = search
     ? expenses?.filter((e) =>
@@ -86,7 +89,7 @@ function ExpensesPage() {
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
-                  <p className="font-medium text-sm text-text-primary">-${Number(expense.amount).toFixed(2)}</p>
+                  <p className="font-medium text-sm text-text-primary">-{formatCurrency(Number(expense.amount), currency)}</p>
                   <button
                     onClick={() => deleteExpense.mutate(expense.id)}
                     className="p-1.5 rounded-lg text-text-tertiary hover:text-rust hover:bg-rust/10 transition-colors"

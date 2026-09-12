@@ -10,7 +10,7 @@ export const Route = createFileRoute('/_authenticated/profile/')({
 })
 
 function ProfilePage() {
-  const { user } = useAuth()
+  const { user, refreshSession } = useAuth()
   const [profile, setProfile] = useState<UserProfile>({ name: '', email: '' })
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
@@ -29,7 +29,8 @@ function ProfilePage() {
     setSaving(true)
     setSaved(false)
     try {
-      await api.patch('/api/users/me/profile', profile)
+      await api.patch('/api/users/me/profile', { name: profile.name })
+      await refreshSession()
       setSaved(true)
     } catch {
       // handle error
