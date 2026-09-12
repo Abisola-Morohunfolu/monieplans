@@ -31,7 +31,7 @@ export interface Env {
   LOG_LEVEL?: 'debug' | 'info' | 'warn' | 'error';
   EMAIL?: SendEmail;
   EMAIL_FROM?: string;
-  EMAIL_PROVIDER?: 'cloudflare' | 'resend' | 'auto';
+  EMAIL_PROVIDER?: 'cloudflare' | 'resend';
 }
 
 const app = new Hono<{ Bindings: Env }>();
