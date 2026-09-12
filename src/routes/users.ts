@@ -9,7 +9,17 @@ export const usersRouter = new Hono();
 
 usersRouter.get('/me', async (c) => {
   const user = c.get('user');
-  return c.json({ id: user.id, email: user.email, name: user.name });
+  const db = c.get('db');
+  const [profile] = await db
+    .select({ preferredCurrency: schema.userProfiles.preferredCurrency })
+    .from(schema.userProfiles)
+    .where(eq(schema.userProfiles.userId, user.id));
+  return c.json({
+    id: user.id,
+    email: user.email,
+    name: user.name,
+    preferredCurrency: profile?.preferredCurrency ?? 'NGN',
+  });
 });
 
 usersRouter.get('/me/profile', async (c) => {
@@ -57,10 +67,18 @@ usersRouter.patch(
       typeof updateProfileSchema.parse
     >;
     const now = nowISO();
+    const fullName = body.fullName ?? body.name;
+
+    if (body.name !== undefined) {
+      await db
+        .update(schema.user)
+        .set({ name: body.name })
+        .where(eq(schema.user.id, user.id));
+    }
 
     const values = {
       userId: user.id,
-      fullName: body.fullName,
+      fullName,
       preferredCurrency: body.preferredCurrency,
       timezone: body.timezone,
       budgetCycleAnchorDay: body.budgetCycleAnchorDay,
@@ -69,7 +87,7 @@ usersRouter.patch(
     };
 
     const setValues = {
-      fullName: body.fullName,
+      fullName,
       preferredCurrency: body.preferredCurrency,
       timezone: body.timezone,
       budgetCycleAnchorDay: body.budgetCycleAnchorDay,

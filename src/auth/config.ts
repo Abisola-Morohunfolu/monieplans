@@ -3,7 +3,11 @@ import { drizzleAdapter } from 'better-auth/adapters/drizzle';
 import { dash } from '@better-auth/infra';
 import type { DrizzleD1Database } from 'drizzle-orm/d1';
 import type * as schema from '../database/schema';
-import { sendViaCloudflare, sendViaResend } from './email';
+import {
+  sendAuthEmail,
+  verificationEmailContent,
+  resetPasswordEmailContent,
+} from './email';
 
 export interface AuthEnv {
   DB: D1Database;
@@ -14,6 +18,7 @@ export interface AuthEnv {
   GITHUB_CLIENT_SECRET?: string;
   RESEND_API_KEY?: string;
   BETTER_AUTH_URL?: string;
+  APP_ORIGIN?: string;
   LOG_LEVEL?: 'debug' | 'info' | 'warn' | 'error';
   EMAIL?: SendEmail;
   EMAIL_FROM?: string;
@@ -40,8 +45,27 @@ export const allowedOrigins = [
   'http://localhost:3000',
   'http://localhost:5173',
   'http://localhost:5174',
+  'https://monieplans.pages.dev',
   'https://monieplans.amorohunfolu.workers.dev',
 ];
+
+function appOrigin(env: AuthEnv): string {
+  return env.APP_ORIGIN ?? 'http://localhost:5173';
+}
+
+async function sendAuthEmailSafely(
+  env: AuthEnv,
+  params: { to: string; subject: string; html: string; text: string },
+  label: string,
+): Promise<void> {
+  const provider = env.EMAIL_PROVIDER ?? 'resend';
+  try {
+    await sendAuthEmail(env, params);
+    console.log(`[${label}] email sent via ${provider}`);
+  } catch (err) {
+    console.error(`[${label}] failed to send email via ${provider}`, err);
+  }
+}
 
 export function createAuth(
   db: DrizzleD1Database<typeof schema>,
@@ -55,37 +79,31 @@ export function createAuth(
     emailAndPassword: {
       enabled: true,
       requireEmailVerification: true,
+      sendResetPassword: async ({ user, token }) => {
+        await sendAuthEmailSafely(
+          env,
+          {
+            to: user.email,
+            ...resetPasswordEmailContent(
+              `${appOrigin(env)}/reset-password?token=${token}`,
+            ),
+          },
+          'reset-password',
+        );
+      },
     },
     emailVerification: {
-      sendVerificationEmail: async ({ user, url }) => {
-        const params = {
-          to: user.email,
-          fromEmail: env.EMAIL_FROM ?? 'noreply@monieplans.com',
-          url,
-        };
-        const provider = env.EMAIL_PROVIDER ?? 'resend';
-
-        try {
-          if (provider === 'cloudflare') {
-            if (!env.EMAIL) {
-              throw new Error('EMAIL binding is not configured');
-            }
-            await sendViaCloudflare(env.EMAIL, params);
-          } else {
-            if (!env.RESEND_API_KEY) {
-              throw new Error('RESEND_API_KEY is not set');
-            }
-            await sendViaResend(env.RESEND_API_KEY, params);
-          }
-          console.log(
-            `[email-verification] verification email sent via ${provider}`,
-          );
-        } catch (err) {
-          console.error(
-            `[email-verification] failed to send verification email via ${provider}`,
-            err,
-          );
-        }
+      sendVerificationEmail: async ({ user, token }) => {
+        await sendAuthEmailSafely(
+          env,
+          {
+            to: user.email,
+            ...verificationEmailContent(
+              `${appOrigin(env)}/verify-email?token=${token}`,
+            ),
+          },
+          'email-verification',
+        );
       },
       sendOnSignUp: true,
       sendOnSignIn: true,

@@ -68,6 +68,7 @@ export const updateGoalSchema = z.object({
 });
 
 export const updateProfileSchema = z.object({
+  name: z.string().optional(),
   fullName: z.string().optional(),
   preferredCurrency: z.string().optional(),
   timezone: z.string().optional(),

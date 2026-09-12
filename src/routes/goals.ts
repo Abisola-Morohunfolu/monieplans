@@ -1,14 +1,17 @@
 import { Hono } from 'hono';
 import { HTTPException } from 'hono/http-exception';
-import { and, desc, eq } from 'drizzle-orm';
+import { and, desc, eq, sql } from 'drizzle-orm';
 import * as schema from '../database/schema';
-import { generateId, nowISO, toCents, fromCents } from '../shared/utils';
+
+import { generateId, nowISO, toCents } from '../shared/utils';
+import { serializeGoal } from '../shared/serializers';
 import {
   createGoalSchema,
   updateGoalSchema,
   reserveGoalSchema,
 } from '../shared/schemas';
 import { validateJson } from '../shared/validate';
+import { getBudgetPeriodOrThrow, type D1Query } from './helpers';
 
 export const goalsRouter = new Hono();
 
@@ -36,7 +39,7 @@ goalsRouter.post('/', validateJson(createGoalSchema), async (c) => {
     })
     .returning();
 
-  return c.json(goal, 201);
+  return c.json(serializeGoal(goal), 201);
 });
 
 goalsRouter.get('/', async (c) => {
@@ -52,7 +55,7 @@ goalsRouter.get('/', async (c) => {
       desc(schema.savingsGoals.createdAt),
     );
 
-  return c.json(goals);
+  return c.json(goals.map(serializeGoal));
 });
 
 goalsRouter.get('/reservations/:budgetPeriodId', async (c) => {
@@ -60,18 +63,7 @@ goalsRouter.get('/reservations/:budgetPeriodId', async (c) => {
   const db = c.get('db');
   const budgetPeriodId = c.req.param('budgetPeriodId');
 
-  const [period] = await db
-    .select()
-    .from(schema.budgetPeriods)
-    .where(
-      and(
-        eq(schema.budgetPeriods.id, budgetPeriodId),
-        eq(schema.budgetPeriods.userId, user.id),
-      ),
-    );
-
-  if (!period)
-    throw new HTTPException(404, { message: 'Budget period not found' });
+  await getBudgetPeriodOrThrow(db, user.id, budgetPeriodId);
 
   const reservations = await db
     .select()
@@ -98,7 +90,7 @@ goalsRouter.get('/:id', async (c) => {
 
   if (!goal)
     throw new HTTPException(404, { message: 'Savings goal not found' });
-  return c.json(goal);
+  return c.json(serializeGoal(goal));
 });
 
 goalsRouter.patch('/:id', validateJson(updateGoalSchema), async (c) => {
@@ -145,7 +137,7 @@ goalsRouter.patch('/:id', validateJson(updateGoalSchema), async (c) => {
     )
     .returning();
 
-  return c.json(updated);
+  return c.json(serializeGoal(updated));
 });
 
 goalsRouter.delete('/:id', async (c) => {
@@ -177,7 +169,7 @@ goalsRouter.delete('/:id', async (c) => {
     )
     .returning();
 
-  return c.json(updated);
+  return c.json(serializeGoal(updated));
 });
 
 goalsRouter.post(
@@ -188,54 +180,44 @@ goalsRouter.post(
     const db = c.get('db');
     const budgetPeriodId = c.req.param('budgetPeriodId')!;
 
-    const [period] = await db
-      .select()
-      .from(schema.budgetPeriods)
-      .where(
-        and(
-          eq(schema.budgetPeriods.id, budgetPeriodId),
-          eq(schema.budgetPeriods.userId, user.id),
-        ),
-      );
+    await getBudgetPeriodOrThrow(db, user.id, budgetPeriodId);
 
-    if (!period)
-      throw new HTTPException(404, { message: 'Budget period not found' });
+    const body = c.get('body') as unknown as ReturnType<
+      typeof reserveGoalSchema.parse
+    >;
 
-    return db.transaction(async (tx) => {
-      const reservations = [];
-      const body = c.get('body') as unknown as ReturnType<
-        typeof reserveGoalSchema.parse
-      >;
+    if (body.reservations.length === 0) return c.json([], 201);
 
-      for (const r of body.reservations) {
-        const [reservation] = await tx
-          .insert(schema.goalBudgetReservations)
-          .values({
-            id: generateId(),
-            budgetPeriodId,
-            goalId: r.goalId,
-            reservedAmountCents: toCents(r.reservedAmount),
-            recommendedAmountCents: toCents(r.reservedAmount),
-            feasibilityStatus: 'on_track',
-            createdAt: nowISO(),
-            updatedAt: nowISO(),
-          })
-          .onConflictDoUpdate({
-            target: [
-              schema.goalBudgetReservations.budgetPeriodId,
-              schema.goalBudgetReservations.goalId,
-            ],
-            set: {
-              reservedAmountCents: toCents(r.reservedAmount),
-              recommendedAmountCents: toCents(r.reservedAmount),
-              updatedAt: nowISO(),
-            },
-          })
-          .returning();
-        reservations.push(reservation);
-      }
+    const queries: D1Query[] = body.reservations.map((r) =>
+      db
+        .insert(schema.goalBudgetReservations)
+        .values({
+          id: generateId(),
+          budgetPeriodId,
+          goalId: r.goalId,
+          reservedAmountCents: toCents(r.reservedAmount),
+          recommendedAmountCents: toCents(r.reservedAmount),
+          feasibilityStatus: 'on_track',
+          createdAt: nowISO(),
+          updatedAt: nowISO(),
+        })
+        .onConflictDoUpdate({
+          target: [
+            schema.goalBudgetReservations.budgetPeriodId,
+            schema.goalBudgetReservations.goalId,
+          ],
+          set: {
+            reservedAmountCents: sql`excluded.reserved_amount_cents`,
+            recommendedAmountCents: sql`excluded.recommended_amount_cents`,
+            updatedAt: sql`excluded.updated_at`,
+          },
+        })
+        .returning(),
+    );
 
-      return c.json(reservations, 201);
-    });
+    const results = await db.batch(queries as [D1Query, ...D1Query[]]);
+    const reservations = results.map((r) => (r as unknown[])[0]);
+
+    return c.json(reservations, 201);
   },
 );

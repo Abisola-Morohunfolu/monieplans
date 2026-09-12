@@ -1,8 +1,10 @@
 import { Hono } from 'hono';
 import { HTTPException } from 'hono/http-exception';
-import { and, desc, eq, gte, isNull, lte, or, sql } from 'drizzle-orm';
+import { and, desc, eq, gte, inArray, isNull, lte, sql } from 'drizzle-orm';
+import type { InferSelectModel } from 'drizzle-orm';
 import * as schema from '../database/schema';
 import { generateId, nowISO, toCents } from '../shared/utils';
+import { serializeExpense } from '../shared/serializers';
 import {
   createExpenseSchema,
   updateExpenseSchema,
@@ -10,6 +12,16 @@ import {
   confirmReceiptItemsSchema,
 } from '../shared/schemas';
 import { validateJson, validateQuery } from '../shared/validate';
+import {
+  assertCategoryVisible,
+  buildWeekCacheUpdate,
+  findWeekForDate,
+  getActiveBudgetPeriod,
+  resolveReceiptContext,
+  type D1Query,
+} from './helpers';
+
+type ExpenseRow = InferSelectModel<typeof schema.expenseEntries>;
 
 const env = (c: { env: unknown }) =>
   c.env as {
@@ -28,111 +40,68 @@ expensesRouter.post('/', validateJson(createExpenseSchema), async (c) => {
     typeof createExpenseSchema.parse
   >;
 
-  return db.transaction(async (tx) => {
-    const [budgetPeriod] = await tx
-      .select()
-      .from(schema.budgetPeriods)
-      .where(
-        and(
-          eq(schema.budgetPeriods.userId, user.id),
-          eq(schema.budgetPeriods.status, 'active'),
-        ),
+  const budgetPeriod = await getActiveBudgetPeriod(db, user.id);
+
+  if (body.categoryId) {
+    await assertCategoryVisible(db, user.id, body.categoryId);
+  }
+
+  const receiptContext = body.receiptId
+    ? await resolveReceiptContext(
+        db,
+        user.id,
+        body.receiptId,
+        body.merchantName ?? null,
       )
-      .orderBy(desc(schema.budgetPeriods.periodStartDate))
-      .limit(1);
+    : null;
 
-    if (!budgetPeriod) {
-      throw new HTTPException(400, {
-        message:
-          'No active budget period found. Please activate a budget period first.',
-      });
-    }
+  const week = await findWeekForDate(db, budgetPeriod.id, body.expenseDate);
+  const weeklyBudgetAllocationId = week?.id ?? null;
 
-    const [week] = await tx
-      .select()
-      .from(schema.weeklyBudgetAllocations)
-      .where(
-        and(
-          eq(schema.weeklyBudgetAllocations.budgetPeriodId, budgetPeriod.id),
-          lte(schema.weeklyBudgetAllocations.weekStartDate, body.expenseDate),
-          gte(schema.weeklyBudgetAllocations.weekEndDate, body.expenseDate),
-        ),
-      )
-      .limit(1);
+  const amountCents = toCents(body.amount);
+  const expenseId = generateId();
+  const now = nowISO();
 
-    const weeklyBudgetAllocationId = week ? week.id : null;
-
-    if (body.categoryId) {
-      const [cat] = await tx
-        .select()
-        .from(schema.categories)
-        .where(
-          and(
-            eq(schema.categories.id, body.categoryId),
-            or(
-              isNull(schema.categories.userId),
-              eq(schema.categories.userId, user.id),
-            ),
-          ),
-        );
-      if (!cat) throw new HTTPException(404, { message: 'Category not found' });
-    }
-
-    let finalMerchantName = body.merchantName ?? null;
-    let sourceType: string = 'manual';
-
-    if (body.receiptId) {
-      const [receipt] = await tx
-        .select()
-        .from(schema.expenseEntryReceipts)
-        .where(
-          and(
-            eq(schema.expenseEntryReceipts.id, body.receiptId),
-            eq(schema.expenseEntryReceipts.userId, user.id),
-            isNull(schema.expenseEntryReceipts.deletedAt),
-          ),
-        );
-      if (!receipt)
-        throw new HTTPException(404, { message: 'Receipt not found' });
-
-      sourceType = 'receipt_upload';
-      if (!finalMerchantName && receipt.parsedMerchantName) {
-        finalMerchantName = receipt.parsedMerchantName;
-      }
-    }
-
-    const [expense] = await tx
+  const queries: D1Query[] = [
+    db
       .insert(schema.expenseEntries)
       .values({
-        id: generateId(),
+        id: expenseId,
         userId: user.id,
         budgetPeriodId: budgetPeriod.id,
         weeklyBudgetAllocationId,
         categoryId: body.categoryId ?? null,
-        amountCents: toCents(body.amount),
+        amountCents,
         expenseDate: body.expenseDate,
         description: body.description ?? null,
-        sourceType,
-        merchantName: finalMerchantName,
+        sourceType: receiptContext?.sourceType ?? 'manual',
+        merchantName: receiptContext?.merchantName ?? body.merchantName ?? null,
         receiptParseStatus: body.receiptId ? 'confirmed' : 'not_applicable',
-        createdAt: nowISO(),
-        updatedAt: nowISO(),
+        createdAt: now,
+        updatedAt: now,
       })
-      .returning();
+      .returning(),
+  ];
 
-    if (body.receiptId) {
-      await tx
+  if (body.receiptId) {
+    queries.push(
+      db
         .update(schema.expenseEntryReceipts)
-        .set({ expenseEntryId: expense.id, parseStatus: 'confirmed' })
-        .where(eq(schema.expenseEntryReceipts.id, body.receiptId));
-    }
+        .set({ expenseEntryId: expenseId, parseStatus: 'confirmed' })
+        .where(eq(schema.expenseEntryReceipts.id, body.receiptId)),
+    );
+  }
 
-    if (weeklyBudgetAllocationId) {
-      await recalculateWeeklyCache(tx, weeklyBudgetAllocationId);
-    }
+  if (weeklyBudgetAllocationId) {
+    queries.push(
+      buildWeekCacheUpdate(db, weeklyBudgetAllocationId, amountCents),
+    );
+  }
 
-    return c.json(expense, 201);
-  });
+  const results = await db.batch(queries as [D1Query, ...D1Query[]]);
+  const [expense] = results[0] as ExpenseRow[];
+
+  return c.json(serializeExpense(expense), 201);
 });
 
 expensesRouter.get('/', validateQuery(listExpensesQuerySchema), async (c) => {
@@ -209,7 +178,7 @@ expensesRouter.get('/', validateQuery(listExpensesQuerySchema), async (c) => {
       desc(schema.expenseEntries.createdAt),
     );
 
-  return c.json(expenses);
+  return c.json(expenses.map(serializeExpense));
 });
 
 expensesRouter.get('/receipts/:id', async (c) => {
@@ -270,7 +239,7 @@ expensesRouter.get('/:id', async (c) => {
     );
 
   if (!expense) throw new HTTPException(404, { message: 'Expense not found' });
-  return c.json(expense);
+  return c.json(serializeExpense(expense));
 });
 
 expensesRouter.patch('/:id', validateJson(updateExpenseSchema), async (c) => {
@@ -294,72 +263,64 @@ expensesRouter.patch('/:id', validateJson(updateExpenseSchema), async (c) => {
 
   if (!expense) throw new HTTPException(404, { message: 'Expense not found' });
 
-  return db.transaction(async (tx) => {
-    const updateData: Record<string, unknown> = { updatedAt: nowISO() };
+  const updateData: Record<string, unknown> = { updatedAt: nowISO() };
 
-    if (body.amount !== undefined)
-      updateData.amountCents = toCents(body.amount);
-    if (body.description !== undefined)
-      updateData.description = body.description;
-    if (body.merchantName !== undefined)
-      updateData.merchantName = body.merchantName;
+  if (body.amount !== undefined) updateData.amountCents = toCents(body.amount);
+  if (body.description !== undefined) updateData.description = body.description;
+  if (body.merchantName !== undefined)
+    updateData.merchantName = body.merchantName;
 
-    if (body.categoryId !== undefined) {
-      if (body.categoryId) {
-        const [cat] = await tx
-          .select()
-          .from(schema.categories)
-          .where(
-            and(
-              eq(schema.categories.id, body.categoryId),
-              or(
-                isNull(schema.categories.userId),
-                eq(schema.categories.userId, user.id),
-              ),
-            ),
-          );
-        if (!cat)
-          throw new HTTPException(404, { message: 'Category not found' });
-      }
-      updateData.categoryId = body.categoryId;
+  if (body.categoryId !== undefined) {
+    if (body.categoryId) {
+      await assertCategoryVisible(db, user.id, body.categoryId);
     }
+    updateData.categoryId = body.categoryId;
+  }
 
-    const oldWeekId = expense.weeklyBudgetAllocationId;
-    let newWeekId = expense.weeklyBudgetAllocationId;
+  const oldWeekId = expense.weeklyBudgetAllocationId;
+  let newWeekId = expense.weeklyBudgetAllocationId;
 
-    if (body.expenseDate !== undefined) {
-      updateData.expenseDate = body.expenseDate;
-      const [week] = await tx
-        .select()
-        .from(schema.weeklyBudgetAllocations)
-        .where(
-          and(
-            eq(
-              schema.weeklyBudgetAllocations.budgetPeriodId,
-              expense.budgetPeriodId,
-            ),
-            lte(schema.weeklyBudgetAllocations.weekStartDate, body.expenseDate),
-            gte(schema.weeklyBudgetAllocations.weekEndDate, body.expenseDate),
-          ),
-        )
-        .limit(1);
+  if (body.expenseDate !== undefined) {
+    updateData.expenseDate = body.expenseDate;
+    const week = await findWeekForDate(
+      db,
+      expense.budgetPeriodId,
+      body.expenseDate,
+    );
+    newWeekId = week?.id ?? null;
+    updateData.weeklyBudgetAllocationId = newWeekId;
+  }
 
-      newWeekId = week ? week.id : null;
-      updateData.weeklyBudgetAllocationId = newWeekId;
-    }
+  const oldAmountCents = expense.amountCents;
+  const newAmountCents =
+    body.amount !== undefined ? toCents(body.amount) : oldAmountCents;
 
-    const [updated] = await tx
+  const queries: D1Query[] = [
+    db
       .update(schema.expenseEntries)
       .set(updateData)
       .where(eq(schema.expenseEntries.id, id))
-      .returning();
+      .returning(),
+  ];
 
-    if (oldWeekId) await recalculateWeeklyCache(tx, oldWeekId);
-    if (newWeekId && newWeekId !== oldWeekId)
-      await recalculateWeeklyCache(tx, newWeekId);
+  if (oldWeekId && oldWeekId !== newWeekId) {
+    queries.push(buildWeekCacheUpdate(db, oldWeekId, -oldAmountCents));
+  }
 
-    return c.json(updated);
-  });
+  if (newWeekId) {
+    const delta =
+      newWeekId === oldWeekId
+        ? newAmountCents - oldAmountCents
+        : newAmountCents;
+    if (delta !== 0) {
+      queries.push(buildWeekCacheUpdate(db, newWeekId, delta));
+    }
+  }
+
+  const results = await db.batch(queries as [D1Query, ...D1Query[]]);
+  const [updated] = results[0] as ExpenseRow[];
+
+  return c.json(serializeExpense(updated));
 });
 
 expensesRouter.delete('/:id', async (c) => {
@@ -380,25 +341,37 @@ expensesRouter.delete('/:id', async (c) => {
 
   if (!expense) throw new HTTPException(404, { message: 'Expense not found' });
 
-  return db.transaction(async (tx) => {
-    const now = nowISO();
-    const [deleted] = await tx
+  const now = nowISO();
+
+  const queries: D1Query[] = [
+    db
       .update(schema.expenseEntries)
       .set({ deletedAt: now, updatedAt: now })
       .where(eq(schema.expenseEntries.id, id))
-      .returning();
+      .returning(),
+  ];
 
-    if (expense.weeklyBudgetAllocationId) {
-      await recalculateWeeklyCache(tx, expense.weeklyBudgetAllocationId);
-    }
+  if (expense.weeklyBudgetAllocationId) {
+    queries.push(
+      buildWeekCacheUpdate(
+        db,
+        expense.weeklyBudgetAllocationId,
+        -expense.amountCents,
+      ),
+    );
+  }
 
-    await tx
+  queries.push(
+    db
       .update(schema.expenseEntryReceipts)
       .set({ deletedAt: now })
-      .where(eq(schema.expenseEntryReceipts.expenseEntryId, id));
+      .where(eq(schema.expenseEntryReceipts.expenseEntryId, id)),
+  );
 
-    return c.json(deleted);
-  });
+  const results = await db.batch(queries as [D1Query, ...D1Query[]]);
+  const [deleted] = results[0] as ExpenseRow[];
+
+  return c.json(deleted);
 });
 
 expensesRouter.post('/receipts/upload', async (c) => {
@@ -505,88 +478,69 @@ expensesRouter.post(
     if (!receipt)
       throw new HTTPException(404, { message: 'Receipt not found' });
 
-    const [budgetPeriod] = await db
+    const budgetPeriod = await getActiveBudgetPeriod(db, user.id);
+
+    const items = await db
       .select()
-      .from(schema.budgetPeriods)
+      .from(schema.receiptLineItems)
       .where(
         and(
-          eq(schema.budgetPeriods.userId, user.id),
-          eq(schema.budgetPeriods.status, 'active'),
+          eq(schema.receiptLineItems.receiptId, receiptId),
+          inArray(schema.receiptLineItems.id, body.itemIds),
         ),
-      )
-      .orderBy(desc(schema.budgetPeriods.periodStartDate))
-      .limit(1);
+      );
 
-    if (!budgetPeriod) {
-      throw new HTTPException(400, {
-        message: 'No active budget period found',
+    const itemById = new Map(items.map((item) => [item.id, item]));
+    const expenseDate = receipt.parsedExpenseDate ?? nowISO().split('T')[0];
+
+    const week = await findWeekForDate(db, budgetPeriod.id, expenseDate);
+
+    const now = nowISO();
+    const expenseValues = [];
+    const validItemIds: string[] = [];
+    let weekDeltaCents = 0;
+
+    for (const itemId of body.itemIds) {
+      const item = itemById.get(itemId);
+      if (!item || item.status !== 'suggested') continue;
+
+      expenseValues.push({
+        id: generateId(),
+        userId: user.id,
+        budgetPeriodId: budgetPeriod.id,
+        weeklyBudgetAllocationId: week?.id ?? null,
+        categoryId: item.categoryId ?? null,
+        amountCents: item.totalPriceCents,
+        expenseDate,
+        description: item.name,
+        sourceType: 'receipt_upload',
+        merchantName: receipt.parsedMerchantName ?? null,
+        receiptParseStatus: 'confirmed',
+        createdAt: now,
+        updatedAt: now,
       });
+      validItemIds.push(itemId);
+      weekDeltaCents += item.totalPriceCents;
     }
 
-    return db.transaction(async (tx) => {
-      const createdExpenses = [];
+    if (expenseValues.length === 0) return c.json([], 201);
 
-      for (const itemId of body.itemIds) {
-        const [item] = await tx
-          .select()
-          .from(schema.receiptLineItems)
-          .where(
-            and(
-              eq(schema.receiptLineItems.id, itemId),
-              eq(schema.receiptLineItems.receiptId, receiptId),
-            ),
-          );
+    const queries: D1Query[] = [
+      db.insert(schema.expenseEntries).values(expenseValues).returning(),
+      db
+        .update(schema.receiptLineItems)
+        .set({ status: 'confirmed', updatedAt: now })
+        .where(inArray(schema.receiptLineItems.id, validItemIds)),
+    ];
 
-        if (!item || item.status !== 'suggested') continue;
+    if (week) {
+      queries.push(buildWeekCacheUpdate(db, week.id, weekDeltaCents));
+    }
 
-        const expenseDate = receipt.parsedExpenseDate ?? nowISO().split('T')[0];
+    const results = await db.batch(queries as [D1Query, ...D1Query[]]);
+    const createdExpenses = results[0] as ExpenseRow[];
 
-        const [week] = await tx
-          .select()
-          .from(schema.weeklyBudgetAllocations)
-          .where(
-            and(
-              eq(
-                schema.weeklyBudgetAllocations.budgetPeriodId,
-                budgetPeriod.id,
-              ),
-              lte(schema.weeklyBudgetAllocations.weekStartDate, expenseDate),
-              gte(schema.weeklyBudgetAllocations.weekEndDate, expenseDate),
-            ),
-          )
-          .limit(1);
-
-        const [expense] = await tx
-          .insert(schema.expenseEntries)
-          .values({
-            id: generateId(),
-            userId: user.id,
-            budgetPeriodId: budgetPeriod.id,
-            weeklyBudgetAllocationId: week?.id ?? null,
-            categoryId: item.categoryId ?? null,
-            amountCents: item.totalPriceCents,
-            expenseDate,
-            description: item.name,
-            sourceType: 'receipt_upload',
-            merchantName: receipt.parsedMerchantName ?? null,
-            receiptParseStatus: 'confirmed',
-            createdAt: nowISO(),
-            updatedAt: nowISO(),
-          })
-          .returning();
-
-        await tx
-          .update(schema.receiptLineItems)
-          .set({ status: 'confirmed', updatedAt: nowISO() })
-          .where(eq(schema.receiptLineItems.id, itemId));
-
-        if (week) await recalculateWeeklyCache(tx, week.id);
-
-        createdExpenses.push(expense);
-      }
-
-      return c.json(createdExpenses, 201);
-    });
+    return c.json(createdExpenses, 201);
   },
 );
 
@@ -627,37 +581,3 @@ expensesRouter.post('/receipts/:id/dismiss-item/:itemId', async (c) => {
 
   return c.json({ success: true });
 });
-
-async function recalculateWeeklyCache(tx: any, weekId: string) {
-  const [week] = await tx
-    .select()
-    .from(schema.weeklyBudgetAllocations)
-    .where(eq(schema.weeklyBudgetAllocations.id, weekId));
-
-  if (!week) return;
-
-  const expenses = await tx
-    .select({ amountCents: schema.expenseEntries.amountCents })
-    .from(schema.expenseEntries)
-    .where(
-      and(
-        eq(schema.expenseEntries.weeklyBudgetAllocationId, weekId),
-        isNull(schema.expenseEntries.deletedAt),
-      ),
-    );
-
-  const totalSpentCents = expenses.reduce(
-    (sum: number, e: { amountCents: number }) => sum + e.amountCents,
-    0,
-  );
-  const remainingCents = week.finalPlannedAmountCents - totalSpentCents;
-
-  await tx
-    .update(schema.weeklyBudgetAllocations)
-    .set({
-      actualSpentAmountCentsCache: totalSpentCents,
-      remainingAmountCentsCache: remainingCents,
-      updatedAt: nowISO(),
-    })
-    .where(eq(schema.weeklyBudgetAllocations.id, weekId));
-}

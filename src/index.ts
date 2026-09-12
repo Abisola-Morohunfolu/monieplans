@@ -23,6 +23,7 @@ export interface Env {
   STATEMENT_PROCESSING: Queue;
   BETTER_AUTH_URL?: string;
   BETTER_AUTH_SECRET: string;
+  APP_ORIGIN?: string;
   GOOGLE_CLIENT_ID?: string;
   GOOGLE_CLIENT_SECRET?: string;
   GITHUB_CLIENT_ID?: string;
