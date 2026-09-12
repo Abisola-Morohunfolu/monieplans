@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { Wordmark } from '../ui/Wordmark'
 
 interface AuthCardProps {
   eyebrow: string
@@ -58,32 +59,13 @@ export function AuthCard({ eyebrow, title, subtitle, children }: AuthCardProps) 
           visible ? 'opacity-100 translate-y-0 blur-0' : 'opacity-0 translate-y-4 blur-[8px]'
         }`}
       >
-        <div className="flex items-center justify-center gap-2">
-          <svg
-            className="text-sage shrink-0"
-            width="18"
-            height="18"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.75"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            aria-hidden="true"
-          >
-            <path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10Z" />
-            <path d="M2 21c0-3 1.85-5.36 5.08-6C9.5 14.52 12 13 13 12" />
-          </svg>
-          <span className="font-[Cormorant_Garamond,Georgia,serif] text-[26px] font-medium leading-none -tracking-[0.01em] text-text-primary">
-            MoniePlans
-          </span>
-        </div>
+        <Wordmark />
 
         <p className="mt-6 mb-2 text-center text-xs font-medium tracking-[0.22em] uppercase text-sage">
           {eyebrow}
         </p>
 
-        <h1 className="m-0 text-center font-[Cormorant_Garamond,Georgia,serif] font-medium text-[28px] leading-tight -tracking-[0.01em] text-text-primary">
+        <h1 className="m-0 text-center font-heading font-medium text-[28px] leading-tight -tracking-[0.01em] text-text-primary">
           {title}
         </h1>
         <p className="mt-2 text-center text-[13px] leading-relaxed text-text-secondary">

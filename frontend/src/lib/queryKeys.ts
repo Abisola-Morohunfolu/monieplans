@@ -31,6 +31,7 @@ export const queryKeys = {
   user: {
     profile: ['user', 'profile'] as const,
     me: ['user', 'me'] as const,
+    session: ['user', 'session'] as const,
   },
   categories: {
     all: ['categories'] as const,

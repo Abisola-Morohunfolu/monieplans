@@ -1,9 +1,14 @@
-import { createFileRoute, useNavigate } from '@tanstack/react-router'
+import { createFileRoute, useNavigate, Navigate } from '@tanstack/react-router'
 import { useState, type FormEvent } from 'react'
 import { useAuth } from '../hooks/useAuth'
 import { AuthCard } from '../components/auth/AuthCard'
 import { OAuthButtons } from '../components/auth/OAuthButtons'
-import { PasswordInput } from '../components/auth/PasswordInput'
+import { Button } from '../components/ui/Button'
+import { Input } from '../components/ui/Input'
+import { PasswordInput } from '../components/ui/PasswordInput'
+import { Divider } from '../components/ui/Divider'
+import { ErrorMessage } from '../components/ui/ErrorMessage'
+import { Spinner } from '../components/ui/Spinner'
 
 export const Route = createFileRoute('/signup')({
   component: SignupPage,
@@ -19,19 +24,18 @@ function SignupPage() {
   const [emailSent, setEmailSent] = useState(false)
   const [resending, setResending] = useState(false)
   const navigate = useNavigate()
-  const { isAuthenticated, isLoading, signUp, sendVerificationEmail } = useAuth()
+  const { isAuthenticated, isLoading, signUp, sendVerificationEmail, refreshSession } = useAuth()
 
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-bg-base">
-        <p className="text-text-secondary">Loading...</p>
+        <Spinner />
       </div>
     )
   }
 
   if (isAuthenticated) {
-    navigate({ to: '/dashboard' })
-    return null
+    return <Navigate to="/dashboard" replace />
   }
 
   const handleSubmit = async (e: FormEvent) => {
@@ -64,6 +68,7 @@ function SignupPage() {
       if (result.error) {
         setError(result.error.message || 'Sign up failed')
       } else {
+        await refreshSession()
         setEmailSent(true)
       }
     } catch {
@@ -106,31 +111,12 @@ function SignupPage() {
             disabled={resending}
             className="inline-flex items-center gap-2 text-[13px] font-medium text-forest hover:underline cursor-pointer bg-transparent border-none p-0 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {resending && (
-              <svg
-                className="animate-spin"
-                width="14"
-                height="14"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                aria-hidden="true"
-              >
-                <path d="M21 12a9 9 0 1 1-6.219-8.56" />
-              </svg>
-            )}
+            {resending && <Spinner size={14} />}
             Resend verification email
           </button>
         </div>
 
-        {error && (
-          <p className="mt-4 flex items-center justify-center gap-1.5 text-[13px] font-medium leading-relaxed text-rust" role="alert">
-            {error}
-          </p>
-        )}
+        {error && <ErrorMessage>{error}</ErrorMessage>}
 
         <p className="mt-6 text-center text-[13px] leading-relaxed text-text-secondary">
           Already have an account?{' '}
@@ -157,58 +143,38 @@ function SignupPage() {
     >
       <OAuthButtons />
 
-      <div className="flex items-center gap-3 my-6">
-        <div className="flex-1 h-px bg-text-primary/10" aria-hidden="true" />
-        <span className="text-xs leading-none text-text-tertiary">or</span>
-        <div className="flex-1 h-px bg-text-primary/10" aria-hidden="true" />
-      </div>
+      <Divider />
 
       <form onSubmit={handleSubmit}>
-        <div className="mt-4">
-          <label
-            htmlFor="name"
-            className="block mb-1.5 text-xs font-medium tracking-[0.01em] text-text-secondary"
-          >
-            Name
-          </label>
-          <input
-            id="name"
-            name="name"
-            type="text"
-            autoComplete="name"
-            placeholder="Your name"
-            value={name}
-            onChange={(e) => {
-              setName(e.target.value)
-              if (error) setError('')
-            }}
-            className="w-full py-3 px-4 rounded-xl border border-text-primary/12 bg-bg-lightest/60 font-sans text-sm leading-relaxed text-text-primary outline-none transition-[border-color,box-shadow] duration-200 placeholder:text-text-tertiary focus:border-text-primary/20 focus:shadow-[0_0_0_2px_var(--color-bg-card),0_0_0_4px_rgba(142,156,117,0.6)]"
-            required
-          />
-        </div>
+        <Input
+          id="name"
+          name="name"
+          type="text"
+          autoComplete="name"
+          placeholder="Your name"
+          label="Name"
+          value={name}
+          onChange={(e) => {
+            setName(e.target.value)
+            if (error) setError('')
+          }}
+          required
+        />
 
-        <div className="mt-4">
-          <label
-            htmlFor="email"
-            className="block mb-1.5 text-xs font-medium tracking-[0.01em] text-text-secondary"
-          >
-            Email
-          </label>
-          <input
-            id="email"
-            name="email"
-            type="email"
-            autoComplete="email"
-            placeholder="you@example.com"
-            value={email}
-            onChange={(e) => {
-              setEmail(e.target.value)
-              if (error) setError('')
-            }}
-            className="w-full py-3 px-4 rounded-xl border border-text-primary/12 bg-bg-lightest/60 font-sans text-sm leading-relaxed text-text-primary outline-none transition-[border-color,box-shadow] duration-200 placeholder:text-text-tertiary focus:border-text-primary/20 focus:shadow-[0_0_0_2px_var(--color-bg-card),0_0_0_4px_rgba(142,156,117,0.6)]"
-            required
-          />
-        </div>
+        <Input
+          id="email"
+          name="email"
+          type="email"
+          autoComplete="email"
+          placeholder="you@example.com"
+          label="Email"
+          value={email}
+          onChange={(e) => {
+            setEmail(e.target.value)
+            if (error) setError('')
+          }}
+          required
+        />
 
         <PasswordInput
           label="Password"
@@ -233,38 +199,12 @@ function SignupPage() {
           }}
         />
 
-        <button
-          type="submit"
-          disabled={loading}
-          className="mt-6 flex items-center justify-center gap-2.5 w-full py-[13px] px-4 rounded-full font-sans text-sm font-semibold leading-none cursor-pointer border-none transition-all duration-300 ease-[cubic-bezier(.22,1,.36,1)] bg-text-primary text-bg-base hover:translate-y-[-2px] hover:scale-[1.03] hover:bg-forest active:scale-95 focus-visible:outline-2 focus-visible:outline-forest focus-visible:outline-offset-3 disabled:opacity-70 disabled:cursor-not-allowed disabled:transform-none"
-          aria-busy={loading}
-          aria-disabled={loading}
-        >
-          {loading && (
-            <svg
-              className="animate-spin shrink-0"
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              aria-hidden="true"
-            >
-              <path d="M21 12a9 9 0 1 1-6.219-8.56" />
-            </svg>
-          )}
-          <span>Create account</span>
-        </button>
+        <Button type="submit" variant="solid" size="sm" fullWidth loading={loading} className="mt-6">
+          Create account
+        </Button>
       </form>
 
-      {error && (
-        <p className="mt-4 flex items-center justify-center gap-1.5 text-[13px] font-medium leading-relaxed text-rust" role="alert">
-          {error}
-        </p>
-      )}
+      {error && <ErrorMessage>{error}</ErrorMessage>}
 
       <p className="mt-5 text-center text-[13px] leading-relaxed text-text-secondary">
         Already have an account?{' '}

@@ -3,6 +3,7 @@ import { drizzleAdapter } from 'better-auth/adapters/drizzle';
 import { dash } from '@better-auth/infra';
 import type { DrizzleD1Database } from 'drizzle-orm/d1';
 import type * as schema from '../database/schema';
+import { sendViaCloudflare, sendViaResend } from './email';
 
 export interface AuthEnv {
   DB: D1Database;
@@ -13,6 +14,10 @@ export interface AuthEnv {
   GITHUB_CLIENT_SECRET?: string;
   RESEND_API_KEY?: string;
   BETTER_AUTH_URL?: string;
+  LOG_LEVEL?: 'debug' | 'info' | 'warn' | 'error';
+  EMAIL?: SendEmail;
+  EMAIL_FROM?: string;
+  EMAIL_PROVIDER?: 'cloudflare' | 'resend';
 }
 
 export interface AuthInstance {
@@ -45,37 +50,42 @@ export function createAuth(
   return betterAuth({
     secret: env.BETTER_AUTH_SECRET,
     baseURL: env.BETTER_AUTH_URL,
+    logger: { level: env.LOG_LEVEL ?? 'warn' },
     database: drizzleAdapter(db, { provider: 'sqlite' }),
     emailAndPassword: {
       enabled: true,
       requireEmailVerification: true,
     },
     emailVerification: {
-      // eslint-disable-next-line @typescript-eslint/require-await
       sendVerificationEmail: async ({ user, url }) => {
-        if (!env.RESEND_API_KEY) {
-          console.error(
-            'RESEND_API_KEY is not set — cannot send verification email',
+        const params = {
+          to: user.email,
+          fromEmail: env.EMAIL_FROM ?? 'noreply@monieplans.com',
+          url,
+        };
+        const provider = env.EMAIL_PROVIDER ?? 'resend';
+
+        try {
+          if (provider === 'cloudflare') {
+            if (!env.EMAIL) {
+              throw new Error('EMAIL binding is not configured');
+            }
+            await sendViaCloudflare(env.EMAIL, params);
+          } else {
+            if (!env.RESEND_API_KEY) {
+              throw new Error('RESEND_API_KEY is not set');
+            }
+            await sendViaResend(env.RESEND_API_KEY, params);
+          }
+          console.log(
+            `[email-verification] verification email sent via ${provider}`,
           );
-          return;
+        } catch (err) {
+          console.error(
+            `[email-verification] failed to send verification email via ${provider}`,
+            err,
+          );
         }
-        void fetch('https://api.resend.com/emails', {
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${env.RESEND_API_KEY}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            from: 'MoniePlans <noreply@monieplans.com>',
-            to: [user.email],
-            subject: 'Verify your email address',
-            html: `<p>Welcome to MoniePlans!</p><p>Click the link below to verify your email address:</p><p><a href="${url}" style="color:#8E9C75;font-weight:500;">Verify Email</a></p><p>This link expires in 24 hours.</p>`,
-          }),
-        })
-          .then((res) => {
-            if (!res.ok) console.error('Failed to send verification email');
-          })
-          .catch(console.error);
       },
       sendOnSignUp: true,
       sendOnSignIn: true,
