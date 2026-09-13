@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate, Navigate } from '@tanstack/react-router'
+import { createFileRoute, Link, Navigate } from '@tanstack/react-router'
 import { useState, type FormEvent } from 'react'
 import { useAuth } from '../hooks/useAuth'
 import { AuthCard } from '../components/auth/AuthCard'
@@ -23,7 +23,6 @@ function SignupPage() {
   const [loading, setLoading] = useState(false)
   const [emailSent, setEmailSent] = useState(false)
   const [resending, setResending] = useState(false)
-  const navigate = useNavigate()
   const { isAuthenticated, isLoading, signUp, sendVerificationEmail, refreshSession } = useAuth()
 
   if (isLoading) {
@@ -64,6 +63,7 @@ function SignupPage() {
         name,
         email,
         password,
+        callbackURL: `${window.location.origin}/dashboard`,
       })
       if (result.error) {
         setError(result.error.message || 'Sign up failed')
@@ -85,7 +85,7 @@ function SignupPage() {
     try {
       await sendVerificationEmail({
         email,
-        callbackURL: '/dashboard',
+        callbackURL: `${window.location.origin}/dashboard`,
       })
     } catch {
       setError('Failed to resend verification email.')
@@ -120,16 +120,12 @@ function SignupPage() {
 
         <p className="mt-6 text-center text-[13px] leading-relaxed text-text-secondary">
           Already have an account?{' '}
-          <a
-            href="/login"
-            onClick={(e) => {
-              e.preventDefault()
-              navigate({ to: '/login' })
-            }}
+          <Link
+            to="/login"
             className="text-forest font-medium no-underline underline-offset-2 hover:underline focus-visible:outline-2 focus-visible:outline-forest focus-visible:outline-offset-3 focus-visible:rounded"
           >
             Sign in
-          </a>
+          </Link>
         </p>
       </AuthCard>
     )
@@ -208,16 +204,12 @@ function SignupPage() {
 
       <p className="mt-5 text-center text-[13px] leading-relaxed text-text-secondary">
         Already have an account?{' '}
-        <a
-          href="/login"
-          onClick={(e) => {
-            e.preventDefault()
-            navigate({ to: '/login' })
-          }}
+        <Link
+          to="/login"
           className="text-forest font-medium no-underline underline-offset-2 hover:underline focus-visible:outline-2 focus-visible:outline-forest focus-visible:outline-offset-3 focus-visible:rounded"
         >
           Sign in
-        </a>
+        </Link>
       </p>
     </AuthCard>
   )

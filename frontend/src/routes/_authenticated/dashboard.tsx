@@ -3,6 +3,8 @@ import { Wallet, TrendingUp, AlertCircle, Receipt } from 'lucide-react'
 import { useBudgets, useActiveBudget } from '../../hooks/useBudgets'
 import { useExpenses } from '../../hooks/useExpenses'
 import { useRecommendations } from '../../hooks/useAnalytics'
+import { usePreferredCurrency } from '../../hooks/useCurrency'
+import { formatCurrency } from '../../lib/currency'
 
 export const Route = createFileRoute('/_authenticated/dashboard')({
   component: DashboardPage,
@@ -13,6 +15,7 @@ function DashboardPage() {
   const { data: activeBudget, isLoading: activeBudgetLoading } = useActiveBudget()
   const { data: expenses, isLoading: expensesLoading } = useExpenses()
   const { data: recommendations, isLoading: recsLoading } = useRecommendations()
+  const currency = usePreferredCurrency()
 
   const isLoading = budgetsLoading || activeBudgetLoading || expensesLoading || recsLoading
 
@@ -60,7 +63,7 @@ function DashboardPage() {
           </div>
           <p className="text-sm text-text-tertiary font-medium">Active Budget Cap</p>
           <h3 className="font-heading text-3xl font-medium mt-1 text-text-primary">
-            ${budgetCap.toLocaleString()}
+            {formatCurrency(budgetCap, activeBudget?.currency ?? currency)}
           </h3>
         </div>
 
@@ -72,11 +75,11 @@ function DashboardPage() {
           </div>
           <p className="text-sm text-text-tertiary font-medium">Total Expenses</p>
           <h3 className="font-heading text-3xl font-medium mt-1 text-text-primary">
-            ${totalExpenses.toLocaleString()}
+            {formatCurrency(totalExpenses, currency)}
           </h3>
           {budgetCap > 0 && (
             <p className="text-xs text-text-tertiary mt-2">
-              ${remaining.toLocaleString()} remaining
+              {formatCurrency(remaining, currency)} remaining
             </p>
           )}
         </div>
@@ -119,7 +122,7 @@ function DashboardPage() {
                       <p className="text-xs text-text-tertiary">{new Date(tx.date ?? '').toLocaleDateString()}</p>
                     </div>
                   </div>
-                  <p className="font-medium text-sm text-text-primary">-${Number(tx.amount).toFixed(2)}</p>
+                  <p className="font-medium text-sm text-text-primary">-{formatCurrency(Number(tx.amount), currency)}</p>
                 </div>
               ))}
             </div>

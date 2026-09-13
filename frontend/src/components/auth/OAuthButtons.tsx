@@ -34,7 +34,7 @@ export function OAuthButtons() {
     try {
       await signIn.social({
         provider,
-        callbackURL: '/dashboard',
+        callbackURL: `${window.location.origin}/dashboard`,
       })
     } catch {
       setError(`Failed to sign in with ${provider === 'google' ? 'Google' : 'GitHub'}.`)
