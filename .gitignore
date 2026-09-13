@@ -17,6 +17,12 @@ dist
 coverage/
 .wrangler/
 
+# Playwright
+/e2e/.auth/
+/test-results/
+/playwright-report/
+/playwright/.cache/
+
 # Local secrets (never commit)
 .dev.vars
 .env
