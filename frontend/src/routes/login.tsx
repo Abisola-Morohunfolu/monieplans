@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate, useSearch, Navigate } from '@tanstack/react-router'
+import { createFileRoute, Link, useNavigate, useSearch, Navigate } from '@tanstack/react-router'
 import { useState, type FormEvent } from 'react'
 import { useAuth } from '../hooks/useAuth'
 import { AuthCard } from '../components/auth/AuthCard'
@@ -113,16 +113,12 @@ function LoginPage() {
         />
 
         <div className="mt-2 flex justify-end">
-          <a
-            href="/forgot-password"
-            onClick={(e) => {
-              e.preventDefault()
-              navigate({ to: '/forgot-password' })
-            }}
+          <Link
+            to="/forgot-password"
             className="text-xs leading-relaxed text-sage no-underline hover:underline focus-visible:outline-2 focus-visible:outline-sage focus-visible:outline-offset-3 focus-visible:rounded"
           >
             Forgot password?
-          </a>
+          </Link>
         </div>
 
         <Button type="submit" variant="solid" size="sm" fullWidth loading={loading} className="mt-6">
@@ -134,16 +130,12 @@ function LoginPage() {
 
       <p className="mt-5 text-center text-[13px] leading-relaxed text-text-secondary">
         Don't have an account?{' '}
-        <a
-          href="/signup"
-          onClick={(e) => {
-            e.preventDefault()
-            navigate({ to: '/signup' })
-          }}
+        <Link
+          to="/signup"
           className="text-forest font-medium no-underline underline-offset-2 hover:underline focus-visible:outline-2 focus-visible:outline-forest focus-visible:outline-offset-3 focus-visible:rounded"
         >
           Create one
-        </a>
+        </Link>
       </p>
     </AuthCard>
   )

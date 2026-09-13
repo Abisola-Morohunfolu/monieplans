@@ -4,15 +4,11 @@ import { serializeBudget } from '../shared/serializers';
 import { createBudgetSchema } from '../shared/schemas';
 import { validateJson } from '../shared/validate';
 import { and, desc, eq, sql } from 'drizzle-orm';
-import type { BatchItem } from 'drizzle-orm/batch';
 import type { InferSelectModel } from 'drizzle-orm';
-import type { DrizzleD1Database } from 'drizzle-orm/d1';
 import * as schema from '../database/schema';
-import { HTTPException } from 'hono/http-exception';
+import { getBudgetPeriodOrThrow, type D1Query, type Db } from './helpers';
 
-type D1Query = BatchItem<'sqlite'>;
 type BudgetPeriodRow = InferSelectModel<typeof schema.budgetPeriods>;
-type Db = DrizzleD1Database<typeof schema>;
 
 export const budgetsRouter = new Hono();
 
@@ -122,18 +118,8 @@ budgetsRouter.get('/:id', async (c) => {
   const db = c.get('db');
   const id = c.req.param('id');
 
-  const [period] = await db
-    .select()
-    .from(schema.budgetPeriods)
-    .where(
-      and(
-        eq(schema.budgetPeriods.userId, user.id),
-        eq(schema.budgetPeriods.id, id),
-      ),
-    );
+  const period = await getBudgetPeriodOrThrow(db, user.id, id);
 
-  if (!period)
-    throw new HTTPException(404, { message: 'Budget period not found' });
   return c.json(serializeBudget(period));
 });
 
@@ -143,18 +129,7 @@ budgetsRouter.post('/:id/activate', async (c) => {
   const id = c.req.param('id');
   const now = nowISO();
 
-  const [period] = await db
-    .select()
-    .from(schema.budgetPeriods)
-    .where(
-      and(
-        eq(schema.budgetPeriods.userId, user.id),
-        eq(schema.budgetPeriods.id, id),
-      ),
-    );
-
-  if (!period)
-    throw new HTTPException(404, { message: 'Budget period not found' });
+  const period = await getBudgetPeriodOrThrow(db, user.id, id);
   if (period.status === 'active') return c.json(serializeBudget(period));
 
   const totalCents =
@@ -229,18 +204,7 @@ budgetsRouter.post('/:id/lock', async (c) => {
   const id = c.req.param('id');
   const now = nowISO();
 
-  const [period] = await db
-    .select()
-    .from(schema.budgetPeriods)
-    .where(
-      and(
-        eq(schema.budgetPeriods.userId, user.id),
-        eq(schema.budgetPeriods.id, id),
-      ),
-    );
-
-  if (!period)
-    throw new HTTPException(404, { message: 'Budget period not found' });
+  await getBudgetPeriodOrThrow(db, user.id, id);
 
   const [updated] = await db
     .update(schema.budgetPeriods)
@@ -256,31 +220,23 @@ budgetsRouter.post('/:id/lock', async (c) => {
   return c.json(serializeBudget(updated));
 });
 
-function buildWeeklyAllocationRows(
-  userId: string,
-  budgetPeriodId: string,
-  startDateStr: string,
-  endDateStr: string,
-  totalAmount: number,
-  strategy: 'equal_split' | 'calendar_aware' = 'equal_split',
-  reservedCents = 0,
-) {
-  const reservedAmount = fromCents(reservedCents);
-  const spendableAmount = Math.max(0, totalAmount - reservedAmount);
+interface WeekChunk {
+  start: Date;
+  end: Date;
+  days: number;
+}
+
+function chunkWeeks(startDateStr: string, endDateStr: string): WeekChunk[] {
   const start = new Date(startDateStr);
   const end = new Date(endDateStr);
-
-  const weeks: { start: Date; end: Date; days: number }[] = [];
+  const weeks: WeekChunk[] = [];
   const currentStart = new Date(start.getTime());
 
   while (currentStart <= end) {
     const currentEnd = new Date(
       currentStart.getTime() + 6 * 24 * 60 * 60 * 1000,
     );
-    let finalEnd = currentEnd;
-    if (currentEnd > end) {
-      finalEnd = new Date(end.getTime());
-    }
+    const finalEnd = currentEnd > end ? new Date(end.getTime()) : currentEnd;
 
     const days =
       Math.round(
@@ -298,23 +254,46 @@ function buildWeeklyAllocationRows(
     }
   }
 
+  return weeks;
+}
+
+function weekStatus(
+  startStr: string,
+  endStr: string,
+  todayStr: string,
+): 'upcoming' | 'current' | 'completed' {
+  if (todayStr >= startStr && todayStr <= endStr) return 'current';
+  if (todayStr > endStr) return 'completed';
+  return 'upcoming';
+}
+
+function buildWeeklyAllocationRows(
+  userId: string,
+  budgetPeriodId: string,
+  startDateStr: string,
+  endDateStr: string,
+  totalAmount: number,
+  strategy: 'equal_split' | 'calendar_aware' = 'equal_split',
+  reservedCents = 0,
+) {
+  const reservedAmount = fromCents(reservedCents);
+  const spendableAmount = Math.max(0, totalAmount - reservedAmount);
+
+  const weeks = chunkWeeks(startDateStr, endDateStr);
   const totalWeeks = weeks.length;
   if (totalWeeks === 0) return [];
 
   const totalDays = weeks.reduce((sum, w) => sum + w.days, 0);
+  const todayStr = new Date().toISOString().split('T')[0];
   let allocatedSum = 0;
 
   const rows = [];
   for (let i = 0; i < totalWeeks; i++) {
     const week = weeks[i];
-    let plannedAmount = 0;
-
-    if (strategy === 'calendar_aware') {
-      plannedAmount =
-        Math.round(spendableAmount * (week.days / totalDays) * 100) / 100;
-    } else {
-      plannedAmount = Math.round((spendableAmount / totalWeeks) * 100) / 100;
-    }
+    let plannedAmount =
+      strategy === 'calendar_aware'
+        ? Math.round(spendableAmount * (week.days / totalDays) * 100) / 100
+        : Math.round((spendableAmount / totalWeeks) * 100) / 100;
 
     if (i === totalWeeks - 1) {
       plannedAmount = Math.round((spendableAmount - allocatedSum) * 100) / 100;
@@ -322,17 +301,8 @@ function buildWeeklyAllocationRows(
       allocatedSum += plannedAmount;
     }
 
-    const todayStr = new Date().toISOString().split('T')[0];
     const startStr = week.start.toISOString().split('T')[0];
     const endStr = week.end.toISOString().split('T')[0];
-
-    let status: 'upcoming' | 'current' | 'completed' = 'upcoming';
-    if (todayStr >= startStr && todayStr <= endStr) {
-      status = 'current';
-    } else if (todayStr > endStr) {
-      status = 'completed';
-    }
-
     const plannedCents = toCents(plannedAmount);
 
     rows.push({
@@ -348,13 +318,60 @@ function buildWeeklyAllocationRows(
       finalPlannedAmountCents: plannedCents,
       actualSpentAmountCentsCache: 0,
       remainingAmountCentsCache: plannedCents,
-      status,
+      status: weekStatus(startStr, endStr, todayStr),
       createdAt: nowISO(),
       updatedAt: nowISO(),
     });
   }
 
   return rows;
+}
+
+function planGoalReservation(
+  goal: InferSelectModel<typeof schema.savingsGoals>,
+  availableBudget: number,
+): { recommendedCents: number; status: string; reason: string | null } {
+  const remaining = Math.max(
+    0,
+    fromCents(goal.targetAmountCents) - fromCents(goal.currentSavedAmountCents),
+  );
+
+  if (!goal.targetDate) {
+    return {
+      recommendedCents: toCents(remaining),
+      status: 'on_track',
+      reason: null,
+    };
+  }
+
+  const today = new Date();
+  const target = new Date(goal.targetDate);
+  const msPerMonth = 1000 * 60 * 60 * 24 * 30.44;
+  const monthsLeft = Math.max(
+    1,
+    Math.round((target.getTime() - today.getTime()) / msPerMonth),
+  );
+  const recommendedAmount = Math.round((remaining / monthsLeft) * 100) / 100;
+
+  if (recommendedAmount > availableBudget * 0.5) {
+    return {
+      recommendedCents: toCents(recommendedAmount),
+      status: 'unrealistic',
+      reason: `Monthly contribution of ${recommendedAmount} exceeds 50% of available budget`,
+    };
+  }
+  if (recommendedAmount > availableBudget * 0.25) {
+    return {
+      recommendedCents: toCents(recommendedAmount),
+      status: 'at_risk',
+      reason: `Monthly contribution of ${recommendedAmount} is above 25% of available budget`,
+    };
+  }
+  return {
+    recommendedCents: toCents(recommendedAmount),
+    status: 'on_track',
+    reason: null,
+  };
 }
 
 async function buildGoalReservations(
@@ -379,45 +396,17 @@ async function buildGoalReservations(
   let totalReservedCents = 0;
 
   for (const goal of goals) {
-    const targetAmount = fromCents(goal.targetAmountCents);
-    const currentSaved = fromCents(goal.currentSavedAmountCents);
-    const remaining = Math.max(0, targetAmount - currentSaved);
-
-    let recommendedAmount = remaining;
-    let feasibilityStatus: string = 'on_track';
-    let feasibilityReason: string | null = null;
-
-    if (goal.targetDate) {
-      const today = new Date();
-      const target = new Date(goal.targetDate);
-      const msPerMonth = 1000 * 60 * 60 * 24 * 30.44;
-      const monthsLeft = Math.max(
-        1,
-        Math.round((target.getTime() - today.getTime()) / msPerMonth),
-      );
-
-      recommendedAmount = Math.round((remaining / monthsLeft) * 100) / 100;
-
-      if (recommendedAmount > availableBudget * 0.5) {
-        feasibilityStatus = 'unrealistic';
-        feasibilityReason = `Monthly contribution of ${recommendedAmount} exceeds 50% of available budget`;
-      } else if (recommendedAmount > availableBudget * 0.25) {
-        feasibilityStatus = 'at_risk';
-        feasibilityReason = `Monthly contribution of ${recommendedAmount} is above 25% of available budget`;
-      }
-    }
-
-    const recommendedCents = toCents(recommendedAmount);
-    totalReservedCents += recommendedCents;
+    const reservation = planGoalReservation(goal, availableBudget);
+    totalReservedCents += reservation.recommendedCents;
 
     values.push({
       id: generateId(),
       budgetPeriodId,
       goalId: goal.id,
-      reservedAmountCents: recommendedCents,
-      recommendedAmountCents: recommendedCents,
-      feasibilityStatus,
-      feasibilityReason,
+      reservedAmountCents: reservation.recommendedCents,
+      recommendedAmountCents: reservation.recommendedCents,
+      feasibilityStatus: reservation.status,
+      feasibilityReason: reservation.reason,
       createdAt: nowISO(),
       updatedAt: nowISO(),
     });

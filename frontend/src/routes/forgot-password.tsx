@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate } from '@tanstack/react-router'
+import { createFileRoute, Link } from '@tanstack/react-router'
 import { useState, type FormEvent } from 'react'
 import { requestPasswordReset } from '../lib/auth'
 import { AuthCard } from '../components/auth/AuthCard'
@@ -15,7 +15,6 @@ function ForgotPasswordPage() {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [sent, setSent] = useState(false)
-  const navigate = useNavigate()
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
@@ -56,15 +55,12 @@ function ForgotPasswordPage() {
           Didn't receive the email? Check your spam folder.
         </p>
 
-        <Button
-          variant="outline"
-          size="sm"
-          fullWidth
-          className="mt-6"
-          onClick={() => navigate({ to: '/login' })}
+        <Link
+          to="/login"
+          className="mt-6 inline-flex w-full items-center justify-center gap-2.5 rounded-full font-sans leading-none cursor-pointer transition-all duration-300 ease-[cubic-bezier(.22,1,.36,1)] focus-visible:outline-2 focus-visible:outline-forest focus-visible:outline-offset-3 border border-text-primary/15 bg-transparent text-text-primary hover:bg-text-primary/5 px-4 py-[13px] text-sm font-semibold hover:-translate-y-0.5 hover:scale-[1.03] active:scale-95"
         >
           Back to sign in
-        </Button>
+        </Link>
       </AuthCard>
     )
   }
@@ -100,16 +96,12 @@ function ForgotPasswordPage() {
 
       <p className="mt-5 text-center text-[13px] leading-relaxed text-text-secondary">
         Remembered your password?{' '}
-        <a
-          href="/login"
-          onClick={(e) => {
-            e.preventDefault()
-            navigate({ to: '/login' })
-          }}
+        <Link
+          to="/login"
           className="text-forest font-medium no-underline underline-offset-2 hover:underline focus-visible:outline-2 focus-visible:outline-forest focus-visible:outline-offset-3 focus-visible:rounded"
         >
           Sign in
-        </a>
+        </Link>
       </p>
     </AuthCard>
   )

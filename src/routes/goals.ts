@@ -1,10 +1,8 @@
 import { Hono } from 'hono';
 import { HTTPException } from 'hono/http-exception';
 import { and, desc, eq, sql } from 'drizzle-orm';
-import type { BatchItem } from 'drizzle-orm/batch';
 import * as schema from '../database/schema';
 
-type D1Query = BatchItem<'sqlite'>;
 import { generateId, nowISO, toCents } from '../shared/utils';
 import { serializeGoal } from '../shared/serializers';
 import {
@@ -13,6 +11,7 @@ import {
   reserveGoalSchema,
 } from '../shared/schemas';
 import { validateJson } from '../shared/validate';
+import { getBudgetPeriodOrThrow, type D1Query } from './helpers';
 
 export const goalsRouter = new Hono();
 
@@ -64,18 +63,7 @@ goalsRouter.get('/reservations/:budgetPeriodId', async (c) => {
   const db = c.get('db');
   const budgetPeriodId = c.req.param('budgetPeriodId');
 
-  const [period] = await db
-    .select()
-    .from(schema.budgetPeriods)
-    .where(
-      and(
-        eq(schema.budgetPeriods.id, budgetPeriodId),
-        eq(schema.budgetPeriods.userId, user.id),
-      ),
-    );
-
-  if (!period)
-    throw new HTTPException(404, { message: 'Budget period not found' });
+  await getBudgetPeriodOrThrow(db, user.id, budgetPeriodId);
 
   const reservations = await db
     .select()
@@ -192,18 +180,7 @@ goalsRouter.post(
     const db = c.get('db');
     const budgetPeriodId = c.req.param('budgetPeriodId')!;
 
-    const [period] = await db
-      .select()
-      .from(schema.budgetPeriods)
-      .where(
-        and(
-          eq(schema.budgetPeriods.id, budgetPeriodId),
-          eq(schema.budgetPeriods.userId, user.id),
-        ),
-      );
-
-    if (!period)
-      throw new HTTPException(404, { message: 'Budget period not found' });
+    await getBudgetPeriodOrThrow(db, user.id, budgetPeriodId);
 
     const body = c.get('body') as unknown as ReturnType<
       typeof reserveGoalSchema.parse
