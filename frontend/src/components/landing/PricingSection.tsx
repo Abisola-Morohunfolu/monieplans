@@ -1,6 +1,7 @@
 import { useScrollReveal } from '../../hooks/useScrollReveal'
 import SectionHeading from './SectionHeading'
 import { Check } from 'lucide-react'
+import { Link } from '@tanstack/react-router'
 
 interface Plan {
   name: string
@@ -105,12 +106,12 @@ function PlanCard({ plan, index }: { plan: Plan; index: number }) {
         ))}
       </ul>
       <div className="plan-cta mt-[30px]">
-        <a
+        <Link
           className={`btn !w-full ${plan.buttonClass}`}
-          href="#closing"
+          to="/signup"
         >
           {plan.cta}
-        </a>
+        </Link>
       </div>
     </article>
   )
