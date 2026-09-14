@@ -83,7 +83,17 @@ app.onError((err, c) => {
     return c.json({ error: err.message }, err.status as never);
   }
   const message = err instanceof Error ? err.message : 'Internal Server Error';
-  return c.json({ error: message }, 500 as never);
+  let details: string | undefined;
+  if (err instanceof Error) {
+    if (err.cause instanceof Error) details = err.cause.message;
+    else if (typeof err.cause === 'string') details = err.cause;
+  }
+  console.error('[api] unhandled error', {
+    message,
+    details,
+    stack: err instanceof Error ? err.stack : undefined,
+  });
+  return c.json({ error: message, details }, 500 as never);
 });
 
 app.get('/api/health', (c) => c.json({ status: 'ok' }));
