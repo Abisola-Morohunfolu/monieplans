@@ -94,7 +94,9 @@ export async function processStatementMessages(
         .from(schema.transactions)
         .where(eq(schema.transactions.userId, userId));
       for (const row of existingTxns) {
-        if (row.externalHash) existingHashes.add(row.externalHash);
+        if (row.externalHash) {
+          existingHashes.add(row.externalHash);
+        }
       }
 
       console.log(
@@ -128,9 +130,9 @@ export async function processStatementMessages(
           isUserCorrected: false,
           isExcludedFromAnalysis: false,
           parentTransactionId: null,
-          isInternalBookkeeping: txn.isInternalBookkeeping,
+          isInternalBookkeeping: txn.isInternalBookkeeping ?? false,
           transactionType: txn.transactionType,
-          rawAiOutputJson: JSON.stringify(txn),
+          rawAiOutputJson: '',
           externalHash: hash,
           createdAt: nowISO(),
           updatedAt: nowISO(),
@@ -147,6 +149,9 @@ export async function processStatementMessages(
         const CHUNK_SIZE = 50;
         const chunkCount = Math.ceil(transactionsToInsert.length / CHUNK_SIZE);
         for (let i = 0; i < transactionsToInsert.length; i += CHUNK_SIZE) {
+          console.log(
+            `[statement] ${JSON.stringify(Object.keys(transactionsToInsert[0] ?? {}))}`,
+          );
           await db
             .insert(schema.transactions)
             .values(transactionsToInsert.slice(i, i + CHUNK_SIZE));
@@ -167,6 +172,7 @@ export async function processStatementMessages(
     } catch (err: unknown) {
       const errorMessage = err instanceof Error ? err.message : 'Unknown error';
       console.error('Error processing statement:', errorMessage);
+      console.error(`Full error message ${JSON.stringify(err)}`);
       try {
         await db
           .update(schema.statementUploads)
