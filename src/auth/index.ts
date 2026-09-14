@@ -11,13 +11,15 @@ export interface AuthCache {
 }
 
 let cached: AuthCache | null = null;
+let cachedDb: D1Database | null = null;
 
 export function getAuth(env: AuthEnv): AuthCache {
-  if (cached) return cached;
+  if (cached && cachedDb === env.DB) return cached;
 
   const db = drizzle(env.DB, { schema });
   const auth = createAuth(db, env);
 
   cached = { auth, db };
+  cachedDb = env.DB;
   return cached;
 }
