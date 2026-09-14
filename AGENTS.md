@@ -57,6 +57,7 @@ Run backend commands from repo root; run frontend commands from `frontend/` dire
 - D1 (Cloudflare's managed SQLite). Local dev via Miniflare (embedded in wrangler dev).
 - Schema: `src/database/schema/` (Drizzle ORM definitions for sqlite-core).
 - Migrations: `drizzle/migrations/` (SQL).
+- `db:migrate:local` / `db:migrate:remote` apply **all** files in `drizzle/migrations/` in filename order. They are **non-idempotent** and assume a fresh DB; to incrementally migrate an existing DB, apply only the new migration files individually (`wrangler d1 execute DB --local|--remote --file=./drizzle/migrations/<name>.sql`).
 - Seed: 11 system categories via `scripts/seed.sql` or `db:seed:local`.
 
 ## Multi-step work
