@@ -29,6 +29,7 @@ export interface Env {
   GITHUB_CLIENT_ID?: string;
   GITHUB_CLIENT_SECRET?: string;
   RESEND_API_KEY?: string;
+  LLAMA_CLOUD_API_KEY: string;
   LOG_LEVEL?: 'debug' | 'info' | 'warn' | 'error';
   EMAIL?: SendEmail;
   EMAIL_FROM?: string;
