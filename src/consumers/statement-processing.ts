@@ -61,6 +61,8 @@ export async function processStatementMessages(
         continue;
       }
 
+      console.log(`[statement] processing upload=${uploadId} file=${fileName}`);
+
       const pdfBuffer = await r2Object.arrayBuffer();
 
       const parsed = await parseStatement(pdfBuffer, fileName);
@@ -79,6 +81,13 @@ export async function processStatementMessages(
           .where(eq(schema.statementUploads.id, uploadId));
       }
 
+      console.log(
+        `[statement] parsed ${parsed.transactions.length} transactions` +
+          (summary
+            ? ` period=${summary.periodStart ?? ''}..${summary.periodEnd ?? ''}`
+            : ''),
+      );
+
       const existingHashes = new Set<string>();
       const existingTxns = await db
         .select({ externalHash: schema.transactions.externalHash })
@@ -88,10 +97,19 @@ export async function processStatementMessages(
         if (row.externalHash) existingHashes.add(row.externalHash);
       }
 
-      const transactionsToInsert = [];
+      console.log(
+        `[statement] found ${existingHashes.size} existing transactions for user`,
+      );
+
+      const transactionsToInsert: (typeof schema.transactions.$inferInsert)[] =
+        [];
+      let skipped = 0;
       for (const txn of parsed.transactions) {
         const hash = generateTransactionHash(txn);
-        if (existingHashes.has(hash)) continue;
+        if (existingHashes.has(hash)) {
+          skipped++;
+          continue;
+        }
 
         transactionsToInsert.push({
           id: generateId(),
@@ -102,8 +120,14 @@ export async function processStatementMessages(
           descriptionRaw: txn.description,
           descriptionNormalized: txn.description.trim().toLowerCase(),
           amountCents: toCents(txn.amount),
+          currency: 'NGN',
           direction: txn.direction,
           merchantName: txn.merchantName ?? null,
+          categoryId: null,
+          categoryConfidence: null,
+          isUserCorrected: false,
+          isExcludedFromAnalysis: false,
+          parentTransactionId: null,
           isInternalBookkeeping: txn.isInternalBookkeeping,
           transactionType: txn.transactionType,
           rawAiOutputJson: JSON.stringify(txn),
@@ -115,14 +139,29 @@ export async function processStatementMessages(
         existingHashes.add(hash);
       }
 
+      console.log(
+        `[statement] skipped ${skipped} duplicates, inserting ${transactionsToInsert.length} new transactions`,
+      );
+
       if (transactionsToInsert.length > 0) {
-        await db.insert(schema.transactions).values(transactionsToInsert);
+        const CHUNK_SIZE = 50;
+        const chunkCount = Math.ceil(transactionsToInsert.length / CHUNK_SIZE);
+        for (let i = 0; i < transactionsToInsert.length; i += CHUNK_SIZE) {
+          await db
+            .insert(schema.transactions)
+            .values(transactionsToInsert.slice(i, i + CHUNK_SIZE));
+        }
+        console.log(
+          `[statement] inserted ${transactionsToInsert.length} transactions in ${chunkCount} chunks`,
+        );
       }
 
       await db
         .update(schema.statementUploads)
         .set({ uploadStatus: 'processed', processedAt: nowISO() })
         .where(eq(schema.statementUploads.id, uploadId));
+
+      console.log(`[statement] finished upload=${uploadId}`);
 
       msg.ack();
     } catch (err: unknown) {
