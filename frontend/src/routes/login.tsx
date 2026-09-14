@@ -12,16 +12,29 @@ import { Spinner } from '../components/ui/Spinner'
 
 interface LoginSearch {
   redirect?: string
+  error?: string
 }
 
 export const Route = createFileRoute('/login')({
   validateSearch: (search: Record<string, unknown>): LoginSearch => {
     return {
       redirect: search.redirect as string | undefined,
+      error: search.error as string | undefined,
     }
   },
   component: LoginPage,
 })
+
+function oauthErrorMessage(code?: string): string {
+  switch (code) {
+    case 'email_not_found':
+      return "We couldn't find an email on your GitHub account. Add a public email to GitHub or use email/password."
+    default:
+      return code
+        ? `Sign in failed (${code.replaceAll('_', ' ')}).`
+        : ''
+  }
+}
 
 function LoginPage() {
   const [email, setEmail] = useState('')
@@ -29,7 +42,7 @@ function LoginPage() {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const navigate = useNavigate()
-  const { redirect } = useSearch({ from: '/login' })
+  const { redirect, error: oauthError } = useSearch({ from: '/login' })
   const { isAuthenticated, isLoading, signIn, refreshSession } = useAuth()
 
   if (isLoading) {
@@ -80,6 +93,8 @@ function LoginPage() {
       }
       subtitle="Pick up where you left off."
     >
+      {oauthError && <ErrorMessage>{oauthErrorMessage(oauthError)}</ErrorMessage>}
+
       <OAuthButtons />
 
       <Divider />
