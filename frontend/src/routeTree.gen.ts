@@ -24,6 +24,7 @@ import { Route as AuthenticatedFixedExpensesIndexRouteImport } from './routes/_a
 import { Route as AuthenticatedGoalsIndexRouteImport } from './routes/_authenticated/goals/index'
 import { Route as AuthenticatedProfileIndexRouteImport } from './routes/_authenticated/profile/index'
 import { Route as AuthenticatedStatementsIndexRouteImport } from './routes/_authenticated/statements/index'
+import { Route as AuthenticatedStatementsStatementIdRouteImport } from './routes/_authenticated/statements/$statementId'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -105,6 +106,12 @@ const AuthenticatedStatementsIndexRoute =
     path: '/statements/',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
+const AuthenticatedStatementsStatementIdRoute =
+  AuthenticatedStatementsStatementIdRouteImport.update({
+    id: '/statements/$statementId',
+    path: '/statements/$statementId',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -115,6 +122,7 @@ export interface FileRoutesByFullPath {
   '/verify-email': typeof VerifyEmailRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/budgets/$budgetId': typeof AuthenticatedBudgetsBudgetIdRoute
+  '/statements/$statementId': typeof AuthenticatedStatementsStatementIdRoute
   '/budgets/': typeof AuthenticatedBudgetsIndexRoute
   '/expenses/': typeof AuthenticatedExpensesIndexRoute
   '/fixed-expenses/': typeof AuthenticatedFixedExpensesIndexRoute
@@ -131,6 +139,7 @@ export interface FileRoutesByTo {
   '/verify-email': typeof VerifyEmailRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/budgets/$budgetId': typeof AuthenticatedBudgetsBudgetIdRoute
+  '/statements/$statementId': typeof AuthenticatedStatementsStatementIdRoute
   '/budgets': typeof AuthenticatedBudgetsIndexRoute
   '/expenses': typeof AuthenticatedExpensesIndexRoute
   '/fixed-expenses': typeof AuthenticatedFixedExpensesIndexRoute
@@ -149,6 +158,7 @@ export interface FileRoutesById {
   '/verify-email': typeof VerifyEmailRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/budgets/$budgetId': typeof AuthenticatedBudgetsBudgetIdRoute
+  '/_authenticated/statements/$statementId': typeof AuthenticatedStatementsStatementIdRoute
   '/_authenticated/budgets/': typeof AuthenticatedBudgetsIndexRoute
   '/_authenticated/expenses/': typeof AuthenticatedExpensesIndexRoute
   '/_authenticated/fixed-expenses/': typeof AuthenticatedFixedExpensesIndexRoute
@@ -167,6 +177,7 @@ export interface FileRouteTypes {
     | '/verify-email'
     | '/dashboard'
     | '/budgets/$budgetId'
+    | '/statements/$statementId'
     | '/budgets/'
     | '/expenses/'
     | '/fixed-expenses/'
@@ -183,6 +194,7 @@ export interface FileRouteTypes {
     | '/verify-email'
     | '/dashboard'
     | '/budgets/$budgetId'
+    | '/statements/$statementId'
     | '/budgets'
     | '/expenses'
     | '/fixed-expenses'
@@ -200,6 +212,7 @@ export interface FileRouteTypes {
     | '/verify-email'
     | '/_authenticated/dashboard'
     | '/_authenticated/budgets/$budgetId'
+    | '/_authenticated/statements/$statementId'
     | '/_authenticated/budgets/'
     | '/_authenticated/expenses/'
     | '/_authenticated/fixed-expenses/'
@@ -325,12 +338,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedStatementsIndexRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/statements/$statementId': {
+      id: '/_authenticated/statements/$statementId'
+      path: '/statements/$statementId'
+      fullPath: '/statements/$statementId'
+      preLoaderRoute: typeof AuthenticatedStatementsStatementIdRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
   }
 }
 
 interface AuthenticatedRouteChildren {
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedBudgetsBudgetIdRoute: typeof AuthenticatedBudgetsBudgetIdRoute
+  AuthenticatedStatementsStatementIdRoute: typeof AuthenticatedStatementsStatementIdRoute
   AuthenticatedBudgetsIndexRoute: typeof AuthenticatedBudgetsIndexRoute
   AuthenticatedExpensesIndexRoute: typeof AuthenticatedExpensesIndexRoute
   AuthenticatedFixedExpensesIndexRoute: typeof AuthenticatedFixedExpensesIndexRoute
@@ -342,6 +363,8 @@ interface AuthenticatedRouteChildren {
 const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedBudgetsBudgetIdRoute: AuthenticatedBudgetsBudgetIdRoute,
+  AuthenticatedStatementsStatementIdRoute:
+    AuthenticatedStatementsStatementIdRoute,
   AuthenticatedBudgetsIndexRoute: AuthenticatedBudgetsIndexRoute,
   AuthenticatedExpensesIndexRoute: AuthenticatedExpensesIndexRoute,
   AuthenticatedFixedExpensesIndexRoute: AuthenticatedFixedExpensesIndexRoute,

@@ -1,4 +1,4 @@
-import { createFileRoute } from '@tanstack/react-router'
+import { createFileRoute, Link } from '@tanstack/react-router'
 import { useRef, useState } from 'react'
 import { FileText, Download, Upload, FileJson } from 'lucide-react'
 import { useStatements, useUploadStatement } from '../../../hooks/useStatements'
@@ -84,7 +84,12 @@ function StatementsPage() {
         ) : (
           <div className="space-y-3">
             {statements.map((stmt) => (
-              <div key={stmt.id} className="flex items-center justify-between p-4 rounded-2xl hover:bg-text-primary/3 transition-colors">
+              <Link
+                key={stmt.id}
+                to="/statements/$statementId"
+                params={{ statementId: stmt.id }}
+                className="flex items-center justify-between p-4 rounded-2xl hover:bg-text-primary/3 transition-colors"
+              >
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-full bg-sage/20 flex items-center justify-center text-forest">
                     <Download className="w-5 h-5" />
@@ -97,7 +102,7 @@ function StatementsPage() {
                   </div>
                 </div>
                 <span className="badge-sage">{stmt.uploadStatus || stmt.status}</span>
-              </div>
+              </Link>
             ))}
           </div>
         )}

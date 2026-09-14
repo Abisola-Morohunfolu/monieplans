@@ -66,6 +66,16 @@ export interface GoalRow {
   updatedAt: string;
 }
 
+export function serializeTransaction<
+  T extends { amountCents: number; postedDate: string },
+>(t: T) {
+  return {
+    ...t,
+    amount: fromCents(t.amountCents),
+    date: t.postedDate,
+  };
+}
+
 export function serializeGoal(g: GoalRow) {
   return {
     id: g.id,

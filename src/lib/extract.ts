@@ -5,7 +5,7 @@ function getClient(): LlamaCloud {
   return new LlamaCloud({ apiKey });
 }
 
-async function extractFromFile<T>(
+export async function extractFromFile<T>(
   fileBuffer: ArrayBuffer,
   fileName: string,
   mimeType: string,
