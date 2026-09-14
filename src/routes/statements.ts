@@ -5,6 +5,7 @@ import * as schema from '../database/schema';
 import { generateId, nowISO } from '../shared/utils';
 import { listTransactionsQuerySchema } from '../shared/schemas';
 import { validateQuery } from '../shared/validate';
+import { getBudgetPeriodOrThrow } from './helpers';
 
 const env = (c: { env: unknown }) =>
   c.env as {
@@ -94,7 +95,11 @@ statementsRouter.post('/upload', async (c) => {
   const file = formData['file'] as File | undefined;
   if (!file) return c.json({ error: 'No file provided' }, 400);
 
-  const budgetPeriodId = formData['budgetPeriodId'] as string | undefined;
+  const rawBudgetPeriodId = formData['budgetPeriodId'] as string | undefined;
+  const budgetPeriodId = rawBudgetPeriodId?.trim() ? rawBudgetPeriodId : null;
+  if (budgetPeriodId) {
+    await getBudgetPeriodOrThrow(db, user.id, budgetPeriodId);
+  }
 
   const filename = `statement-${Date.now()}-${Math.round(Math.random() * 10000)}-${file.name}`;
   const key = `statements/${user.id}/${filename}`;
@@ -110,7 +115,7 @@ statementsRouter.post('/upload', async (c) => {
     .values({
       id: generateId(),
       userId: user.id,
-      budgetPeriodId: budgetPeriodId ?? null,
+      budgetPeriodId,
       fileName: file.name,
       fileType: file.type,
       storagePath: key,
@@ -123,7 +128,7 @@ statementsRouter.post('/upload', async (c) => {
     await e.STATEMENT_PROCESSING.send({
       uploadId: upload.id,
       userId: user.id,
-      budgetPeriodId: budgetPeriodId ?? null,
+      budgetPeriodId,
       fileName: file.name,
       storagePath: key,
     });
