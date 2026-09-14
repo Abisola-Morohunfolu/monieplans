@@ -146,12 +146,9 @@ export async function processStatementMessages(
       );
 
       if (transactionsToInsert.length > 0) {
-        const CHUNK_SIZE = 50;
+        const CHUNK_SIZE = 4;
         const chunkCount = Math.ceil(transactionsToInsert.length / CHUNK_SIZE);
         for (let i = 0; i < transactionsToInsert.length; i += CHUNK_SIZE) {
-          console.log(
-            `[statement] ${JSON.stringify(Object.keys(transactionsToInsert[0] ?? {}))}`,
-          );
           await db
             .insert(schema.transactions)
             .values(transactionsToInsert.slice(i, i + CHUNK_SIZE));
