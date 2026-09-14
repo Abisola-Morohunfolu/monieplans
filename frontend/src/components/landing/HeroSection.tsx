@@ -1,4 +1,5 @@
 import { Camera, FileText } from 'lucide-react';
+import { Link } from '@tanstack/react-router';
 import { useScrollReveal } from '../../hooks/useScrollReveal';
 
 export default function HeroSection() {
@@ -42,9 +43,9 @@ export default function HeroSection() {
         </p>
 
         <div className="hero-actions flex gap-[14px] mt-[38px] flex-wrap justify-center">
-          <a className="btn-primary" href="#pricing">
+          <Link className="btn-primary" to="/signup">
             Start budgeting free
-          </a>
+          </Link>
           <a className="btn-ghost" href="#how-it-works">
             See how it works
           </a>

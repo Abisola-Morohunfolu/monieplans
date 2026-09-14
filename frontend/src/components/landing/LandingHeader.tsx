@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { Menu, X } from 'lucide-react';
+import { Link } from '@tanstack/react-router';
 
 const navLinks = [
   { href: '#features', label: 'Features' },
@@ -61,12 +62,18 @@ export default function LandingHeader() {
         </nav>
 
         <div className="flex items-center gap-3">
-          <a
+          <Link
             className="btn-ghost btn-sm hidden sm:inline-flex header-cta"
-            href="#pricing"
+            to="/login"
+          >
+            Sign in
+          </Link>
+          <Link
+            className="btn-primary btn-sm hidden sm:inline-flex header-cta"
+            to="/signup"
           >
             Start budgeting
-          </a>
+          </Link>
           <button
             className="menu-toggle md:hidden w-[44px] h-[44px] rounded-[12px] border border-text-primary/10 grid place-items-center"
             onClick={() => setMobileOpen(!mobileOpen)}
@@ -98,10 +105,13 @@ export default function LandingHeader() {
             {label}
           </a>
         ))}
-        <div className="mm-cta mt-5">
-          <a className="btn-primary" href="#pricing" onClick={closeMobile}>
+        <div className="mm-cta mt-5 flex flex-col gap-3">
+          <Link className="btn-primary" to="/signup" onClick={closeMobile}>
             Start budgeting free
-          </a>
+          </Link>
+          <Link className="btn-ghost" to="/login" onClick={closeMobile}>
+            Sign in
+          </Link>
         </div>
       </nav>
     </header>

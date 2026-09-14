@@ -1,3 +1,4 @@
+import { Link } from '@tanstack/react-router';
 import { useScrollReveal } from '../../hooks/useScrollReveal';
 
 export default function ClosingCTA() {
@@ -38,9 +39,9 @@ export default function ClosingCTA() {
           calls, no fine print.
         </p>
         <div className="closing-actions mt-[38px] flex gap-[14px] justify-center flex-wrap">
-          <a className="btn-on-dark" href="#pricing">
+          <Link className="btn-on-dark" to="/signup">
             Start budgeting free
-          </a>
+          </Link>
         </div>
         <div className="closing-note mt-5 text-[13px] text-on-dark-muted">
           Free forever for one budget period.
