@@ -138,6 +138,10 @@ export const listTransactionsQuerySchema = z.object({
   transactionType: z.string().optional(),
 });
 
+export const updateTransactionCategorySchema = z.object({
+  categoryId: z.string().nullable(),
+});
+
 export type CreateBudgetInput = z.infer<typeof createBudgetSchema>;
 export type CreateExpenseInput = z.infer<typeof createExpenseSchema>;
 export type UpdateExpenseInput = z.infer<typeof updateExpenseSchema>;

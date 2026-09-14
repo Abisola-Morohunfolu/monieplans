@@ -1,11 +1,15 @@
 import { Hono } from 'hono';
 import { HTTPException } from 'hono/http-exception';
-import { and, desc, eq } from 'drizzle-orm';
+import { and, desc, eq, inArray } from 'drizzle-orm';
 import * as schema from '../database/schema';
 import { generateId, nowISO } from '../shared/utils';
-import { listTransactionsQuerySchema } from '../shared/schemas';
-import { validateQuery } from '../shared/validate';
-import { getBudgetPeriodOrThrow } from './helpers';
+import { serializeTransaction } from '../shared/serializers';
+import {
+  listTransactionsQuerySchema,
+  updateTransactionCategorySchema,
+} from '../shared/schemas';
+import { validateJson, validateQuery } from '../shared/validate';
+import { assertCategoryVisible, getBudgetPeriodOrThrow } from './helpers';
 
 const env = (c: { env: unknown }) =>
   c.env as {
@@ -77,12 +81,139 @@ statementsRouter.get(
     }
 
     const transactions = await db
-      .select()
+      .select({
+        id: schema.transactions.id,
+        statementUploadId: schema.transactions.statementUploadId,
+        postedDate: schema.transactions.postedDate,
+        descriptionRaw: schema.transactions.descriptionRaw,
+        descriptionNormalized: schema.transactions.descriptionNormalized,
+        amountCents: schema.transactions.amountCents,
+        currency: schema.transactions.currency,
+        direction: schema.transactions.direction,
+        merchantName: schema.transactions.merchantName,
+        categoryId: schema.transactions.categoryId,
+        categoryName: schema.categories.name,
+        isUserCorrected: schema.transactions.isUserCorrected,
+        isExcludedFromAnalysis: schema.transactions.isExcludedFromAnalysis,
+        isInternalBookkeeping: schema.transactions.isInternalBookkeeping,
+        parentTransactionId: schema.transactions.parentTransactionId,
+        transactionType: schema.transactions.transactionType,
+        createdAt: schema.transactions.createdAt,
+        updatedAt: schema.transactions.updatedAt,
+      })
       .from(schema.transactions)
+      .leftJoin(
+        schema.categories,
+        eq(schema.transactions.categoryId, schema.categories.id),
+      )
       .where(and(...conditions))
       .orderBy(desc(schema.transactions.postedDate));
 
-    return c.json(transactions);
+    const txnIds = transactions.map((t) => t.id);
+    const convertedToExpense = new Map<string, string>();
+    const convertedToIncome = new Map<string, string>();
+
+    if (txnIds.length > 0) {
+      const expenses = await db
+        .select({
+          id: schema.expenseEntries.id,
+          transactionId: schema.expenseEntries.transactionId,
+        })
+        .from(schema.expenseEntries)
+        .where(inArray(schema.expenseEntries.transactionId, txnIds));
+      for (const e of expenses) {
+        if (e.transactionId) convertedToExpense.set(e.transactionId, e.id);
+      }
+
+      const incomes = await db
+        .select({
+          id: schema.incomeEntries.id,
+          transactionId: schema.incomeEntries.transactionId,
+        })
+        .from(schema.incomeEntries)
+        .where(inArray(schema.incomeEntries.transactionId, txnIds));
+      for (const i of incomes) {
+        if (i.transactionId) convertedToIncome.set(i.transactionId, i.id);
+      }
+    }
+
+    return c.json(
+      transactions.map((t) => ({
+        ...serializeTransaction(t),
+        convertedToExpenseId: convertedToExpense.get(t.id) ?? null,
+        convertedToIncomeId: convertedToIncome.get(t.id) ?? null,
+      })),
+    );
+  },
+);
+
+statementsRouter.patch(
+  '/transactions/:id',
+  validateJson(updateTransactionCategorySchema),
+  async (c) => {
+    const user = c.get('user');
+    const db = c.get('db');
+    const txnId = c.req.param('id')!;
+    const body = c.get('body') as unknown as ReturnType<
+      typeof updateTransactionCategorySchema.parse
+    >;
+
+    const [transaction] = await db
+      .select()
+      .from(schema.transactions)
+      .where(
+        and(
+          eq(schema.transactions.id, txnId),
+          eq(schema.transactions.userId, user.id),
+        ),
+      );
+
+    if (!transaction)
+      throw new HTTPException(404, { message: 'Transaction not found' });
+
+    if (body.categoryId) {
+      await assertCategoryVisible(db, user.id, body.categoryId);
+    }
+
+    const [updated] = await db
+      .update(schema.transactions)
+      .set({
+        categoryId: body.categoryId,
+        isUserCorrected: true,
+        categoryConfidence: body.categoryId ? 100 : null,
+        updatedAt: nowISO(),
+      })
+      .where(eq(schema.transactions.id, txnId))
+      .returning();
+
+    if (body.categoryId) {
+      const merchant = (transaction.merchantName ?? '').trim().toLowerCase();
+      const matchType = merchant ? 'merchant' : 'contains_text';
+      const matchValue =
+        merchant ||
+        (transaction.descriptionNormalized ?? transaction.descriptionRaw)
+          .trim()
+          .toLowerCase();
+
+      if (matchValue) {
+        await db
+          .insert(schema.transactionCategoryRules)
+          .values({
+            id: generateId(),
+            userId: user.id,
+            matchType,
+            matchValue,
+            categoryId: body.categoryId,
+            priority: 0,
+            createdFromTransactionId: transaction.id,
+            createdAt: nowISO(),
+            updatedAt: nowISO(),
+          })
+          .onConflictDoNothing();
+      }
+    }
+
+    return c.json(serializeTransaction(updated));
   },
 );
 
@@ -160,6 +291,16 @@ statementsRouter.post('/transactions/:id/convert-to-expense', async (c) => {
     });
   }
 
+  const [existing] = await db
+    .select({ id: schema.expenseEntries.id })
+    .from(schema.expenseEntries)
+    .where(eq(schema.expenseEntries.transactionId, txnId));
+  if (existing) {
+    throw new HTTPException(409, {
+      message: 'Transaction already converted to an expense',
+    });
+  }
+
   const [budgetPeriod] = await db
     .select()
     .from(schema.budgetPeriods)
@@ -187,7 +328,7 @@ statementsRouter.post('/transactions/:id/convert-to-expense', async (c) => {
       amountCents: transaction.amountCents,
       expenseDate: transaction.postedDate,
       description: transaction.descriptionRaw,
-      sourceType: 'manual',
+      sourceType: 'statement_import',
       merchantName: transaction.merchantName ?? null,
       createdAt: nowISO(),
       updatedAt: nowISO(),
@@ -217,6 +358,16 @@ statementsRouter.post('/transactions/:id/convert-to-income', async (c) => {
   if (transaction.direction !== 'credit') {
     throw new HTTPException(400, {
       message: 'Only credit transactions can be converted to income',
+    });
+  }
+
+  const [existing] = await db
+    .select({ id: schema.incomeEntries.id })
+    .from(schema.incomeEntries)
+    .where(eq(schema.incomeEntries.transactionId, txnId));
+  if (existing) {
+    throw new HTTPException(409, {
+      message: 'Transaction already converted to income',
     });
   }
 

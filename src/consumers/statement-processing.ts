@@ -1,8 +1,14 @@
 import { drizzle } from 'drizzle-orm/d1';
-import { eq } from 'drizzle-orm';
+import { eq, isNull, or } from 'drizzle-orm';
 import * as schema from '../database/schema';
 import { nowISO, generateId, toCents } from '../shared/utils';
 import { parseStatement, type ParsedTransaction } from '../lib/extract';
+import {
+  categorizeDebit,
+  categorizeDebitsWithAI,
+  type AiCategorizeCandidate,
+  type CategorizeResult,
+} from '../lib/categorize';
 
 interface Env {
   DB: D1Database;
@@ -103,8 +109,22 @@ export async function processStatementMessages(
         `[statement] found ${existingHashes.size} existing transactions for user`,
       );
 
-      const transactionsToInsert: (typeof schema.transactions.$inferInsert)[] =
-        [];
+      const rules = await db
+        .select()
+        .from(schema.transactionCategoryRules)
+        .where(eq(schema.transactionCategoryRules.userId, userId));
+
+      const categories = await db
+        .select()
+        .from(schema.categories)
+        .where(
+          or(
+            isNull(schema.categories.userId),
+            eq(schema.categories.userId, userId),
+          ),
+        );
+
+      const newTransactions: { txn: ParsedTransaction; hash: string }[] = [];
       let skipped = 0;
       for (const txn of parsed.transactions) {
         const hash = generateTransactionHash(txn);
@@ -112,34 +132,84 @@ export async function processStatementMessages(
           skipped++;
           continue;
         }
-
-        transactionsToInsert.push({
-          id: generateId(),
-          userId,
-          statementUploadId: uploadId,
-          budgetPeriodId,
-          postedDate: txn.date || nowISO().split('T')[0],
-          descriptionRaw: txn.description,
-          descriptionNormalized: txn.description.trim().toLowerCase(),
-          amountCents: toCents(txn.amount),
-          currency: 'NGN',
-          direction: txn.direction,
-          merchantName: txn.merchantName ?? null,
-          categoryId: null,
-          categoryConfidence: null,
-          isUserCorrected: false,
-          isExcludedFromAnalysis: false,
-          parentTransactionId: null,
-          isInternalBookkeeping: txn.isInternalBookkeeping ?? false,
-          transactionType: txn.transactionType,
-          rawAiOutputJson: '',
-          externalHash: hash,
-          createdAt: nowISO(),
-          updatedAt: nowISO(),
-        });
-
         existingHashes.add(hash);
+        newTransactions.push({ txn, hash });
       }
+
+      const categorizations: CategorizeResult[] = newTransactions.map(
+        ({ txn }) =>
+          txn.direction === 'debit' && !txn.isInternalBookkeeping
+            ? categorizeDebit(txn, rules, categories)
+            : { categoryId: null, confidence: null, matchedBy: null },
+      );
+
+      const aiCandidates: AiCategorizeCandidate[] = [];
+      newTransactions.forEach(({ txn }, index) => {
+        if (
+          categorizations[index].categoryId === null &&
+          txn.direction === 'debit' &&
+          !txn.isInternalBookkeeping
+        ) {
+          aiCandidates.push({
+            reference: String(index),
+            merchantName: txn.merchantName,
+            description: txn.description,
+          });
+        }
+      });
+
+      if (aiCandidates.length > 0) {
+        try {
+          const aiResults = await categorizeDebitsWithAI(
+            aiCandidates,
+            categories,
+          );
+          for (const candidate of aiCandidates) {
+            const categoryId = aiResults.get(candidate.reference);
+            if (categoryId) {
+              categorizations[Number(candidate.reference)] = {
+                categoryId,
+                confidence: 50,
+                matchedBy: 'ai',
+              };
+            }
+          }
+        } catch (err) {
+          console.error(
+            '[statement] AI categorization failed, leaving uncategorized:',
+            err,
+          );
+        }
+      }
+
+      const transactionsToInsert: (typeof schema.transactions.$inferInsert)[] =
+        newTransactions.map(({ txn, hash }, index) => {
+          const categorization = categorizations[index];
+          return {
+            id: generateId(),
+            userId,
+            statementUploadId: uploadId,
+            budgetPeriodId,
+            postedDate: txn.date || nowISO().split('T')[0],
+            descriptionRaw: txn.description,
+            descriptionNormalized: txn.description.trim().toLowerCase(),
+            amountCents: toCents(txn.amount),
+            currency: 'NGN',
+            direction: txn.direction,
+            merchantName: txn.merchantName ?? null,
+            categoryId: categorization?.categoryId ?? null,
+            categoryConfidence: categorization?.confidence ?? null,
+            isUserCorrected: false,
+            isExcludedFromAnalysis: false,
+            parentTransactionId: null,
+            isInternalBookkeeping: txn.isInternalBookkeeping ?? false,
+            transactionType: txn.transactionType,
+            rawAiOutputJson: '',
+            externalHash: hash,
+            createdAt: nowISO(),
+            updatedAt: nowISO(),
+          };
+        });
 
       console.log(
         `[statement] skipped ${skipped} duplicates, inserting ${transactionsToInsert.length} new transactions`,

@@ -88,20 +88,28 @@ export interface StatementUpload {
 
 export interface StatementTransaction {
   id: string
-  statementUploadId: string
+  statementUploadId: string | null
   amountCents: number
   amount?: number
   descriptionRaw: string
   description?: string
+  descriptionNormalized?: string | null
   postedDate: string
   date?: string
   direction: string
+  currency?: string
   merchantName?: string | null
   transactionType?: string | null
   isInternalBookkeeping?: boolean
   parentTransactionId?: string | null
   categoryId?: string | null
+  categoryName?: string | null
+  isUserCorrected?: boolean
+  isExcludedFromAnalysis?: boolean
+  convertedToExpenseId?: string | null
+  convertedToIncomeId?: string | null
   createdAt: string
+  updatedAt?: string
 }
 
 export interface Category {
