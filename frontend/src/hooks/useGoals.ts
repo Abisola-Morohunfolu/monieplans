@@ -1,10 +1,10 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '../lib/api'
 import { queryKeys } from '../lib/queryKeys'
-import type { Goal } from '../types'
+import type { CreateGoalInput, Goal, Paginated } from '../types'
 
-async function fetchGoals(): Promise<Goal[]> {
-  const { data } = await api.get('/api/goals')
+async function fetchGoals(params?: { limit?: number; offset?: number }): Promise<Paginated<Goal>> {
+  const { data } = await api.get('/api/goals', { params })
   return data
 }
 
@@ -13,10 +13,10 @@ async function fetchGoal(id: string): Promise<Goal> {
   return data
 }
 
-export function useGoals() {
+export function useGoals(params?: { limit?: number; offset?: number }) {
   return useQuery({
-    queryKey: queryKeys.goals.all,
-    queryFn: fetchGoals,
+    queryKey: [queryKeys.goals.all, params] as const,
+    queryFn: () => fetchGoals(params),
   })
 }
 
@@ -32,7 +32,7 @@ export function useCreateGoal() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: (data: Partial<Goal>) => api.post('/api/goals', data),
+    mutationFn: (data: CreateGoalInput) => api.post('/api/goals', data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.goals.all })
     },

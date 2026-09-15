@@ -12,6 +12,7 @@ import {
   confirmReceiptItemsSchema,
 } from '../shared/schemas';
 import { validateJson, validateQuery } from '../shared/validate';
+import { paginated, resolveLimitOffset } from '../shared/pagination';
 import {
   assertCategoryVisible,
   buildWeekCacheUpdate,
@@ -148,6 +149,14 @@ expensesRouter.get('/', validateQuery(listExpensesQuerySchema), async (c) => {
     );
   }
 
+  const { limit, offset } = resolveLimitOffset(query);
+
+  const [countRow] = await db
+    .select({ count: sql<number>`count(*)` })
+    .from(schema.expenseEntries)
+    .where(and(...conditions));
+  const total = Number(countRow?.count ?? 0);
+
   const expenses = await db
     .select({
       id: schema.expenseEntries.id,
@@ -176,9 +185,13 @@ expensesRouter.get('/', validateQuery(listExpensesQuerySchema), async (c) => {
     .orderBy(
       desc(schema.expenseEntries.expenseDate),
       desc(schema.expenseEntries.createdAt),
-    );
+    )
+    .limit(limit)
+    .offset(offset);
 
-  return c.json(expenses.map(serializeExpense));
+  return c.json(
+    paginated(expenses.map(serializeExpense), total, limit, offset),
+  );
 });
 
 expensesRouter.get('/receipts/:id', async (c) => {

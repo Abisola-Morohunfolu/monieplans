@@ -4,11 +4,14 @@ export interface BudgetRow {
   id: string;
   presetMonth: string | null;
   periodStartDate: string;
+  periodEndDate: string;
+  cycleType: string;
   status: string;
   planningMode: string;
   monthlyIncomeAmountCents: number | null;
   monthlyBudgetCapAmountCents: number | null;
   currency: string;
+  notes: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -36,10 +39,15 @@ export function serializeBudget(p: BudgetRow) {
     name: budgetName(p.presetMonth, p.periodStartDate),
     status: p.status,
     cycle: 'weekly' as const,
+    cycleType: p.cycleType,
+    periodStartDate: p.periodStartDate,
+    periodEndDate: p.periodEndDate,
+    presetMonth: p.presetMonth,
     cap: fromCents(p.monthlyBudgetCapAmountCents ?? 0),
     income: fromCents(p.monthlyIncomeAmountCents ?? 0),
     planningMode: p.planningMode,
     currency: p.currency,
+    notes: p.notes,
     createdAt: p.createdAt,
     updatedAt: p.updatedAt,
   };
@@ -48,9 +56,10 @@ export function serializeBudget(p: BudgetRow) {
 export function serializeExpense<
   T extends { amountCents: number; expenseDate: string },
 >(e: T) {
+  const { amountCents, ...rest } = e;
   return {
-    ...e,
-    amount: fromCents(e.amountCents),
+    ...rest,
+    amount: fromCents(amountCents),
     date: e.expenseDate,
   };
 }
@@ -62,6 +71,9 @@ export interface GoalRow {
   currentSavedAmountCents: number;
   targetDate: string | null;
   status: string;
+  priorityRank: number;
+  reserveInBudget: boolean;
+  notes: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -69,9 +81,10 @@ export interface GoalRow {
 export function serializeTransaction<
   T extends { amountCents: number; postedDate: string },
 >(t: T) {
+  const { amountCents, ...rest } = t;
   return {
-    ...t,
-    amount: fromCents(t.amountCents),
+    ...rest,
+    amount: fromCents(amountCents),
     date: t.postedDate,
   };
 }
@@ -84,8 +97,46 @@ export function serializeGoal(g: GoalRow) {
     currentAmount: fromCents(g.currentSavedAmountCents),
     deadline: g.targetDate,
     status: g.status,
+    priorityRank: g.priorityRank,
+    reserveInBudget: g.reserveInBudget,
+    notes: g.notes,
     createdAt: g.createdAt,
     updatedAt: g.updatedAt,
+  };
+}
+
+export function serializeIncome<
+  T extends { amountCents: number; incomeDate: string },
+>(i: T) {
+  const { amountCents, ...rest } = i;
+  return {
+    ...rest,
+    amount: fromCents(amountCents),
+    date: i.incomeDate,
+  };
+}
+
+export function serializeAllocation<
+  T extends {
+    plannedAmountCents: number;
+    finalPlannedAmountCents: number;
+    actualSpentAmountCentsCache: number | null;
+    remainingAmountCentsCache: number | null;
+  },
+>(a: T) {
+  const {
+    plannedAmountCents,
+    finalPlannedAmountCents,
+    actualSpentAmountCentsCache,
+    remainingAmountCentsCache,
+    ...rest
+  } = a;
+  return {
+    ...rest,
+    plannedAmount: fromCents(plannedAmountCents),
+    finalPlannedAmount: fromCents(finalPlannedAmountCents),
+    actualSpent: fromCents(actualSpentAmountCentsCache ?? 0),
+    remaining: fromCents(remainingAmountCentsCache ?? 0),
   };
 }
 

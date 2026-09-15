@@ -1,15 +1,25 @@
 import { Hono } from 'hono';
 import { HTTPException } from 'hono/http-exception';
-import { and, desc, eq, inArray } from 'drizzle-orm';
+import { and, desc, eq, inArray, sql } from 'drizzle-orm';
+import type { InferSelectModel } from 'drizzle-orm';
 import * as schema from '../database/schema';
 import { generateId, nowISO } from '../shared/utils';
 import { serializeTransaction } from '../shared/serializers';
 import {
   listTransactionsQuerySchema,
   updateTransactionCategorySchema,
+  paginationQuerySchema,
 } from '../shared/schemas';
 import { validateJson, validateQuery } from '../shared/validate';
-import { assertCategoryVisible, getBudgetPeriodOrThrow } from './helpers';
+import {
+  assertCategoryVisible,
+  buildWeekCacheUpdate,
+  findWeekForDate,
+  getBudgetPeriodOrThrow,
+  type Db,
+  type D1Query,
+} from './helpers';
+import { paginated, resolveLimitOffset } from '../shared/pagination';
 
 const env = (c: { env: unknown }) =>
   c.env as {
@@ -19,20 +29,142 @@ const env = (c: { env: unknown }) =>
     STATEMENT_PROCESSING: Queue;
   };
 
+async function getConvertedMaps(
+  db: Db,
+  txnIds: string[],
+): Promise<{ expense: Map<string, string>; income: Map<string, string> }> {
+  const expense = new Map<string, string>();
+  const income = new Map<string, string>();
+  if (txnIds.length === 0) return { expense, income };
+
+  const expenses = await db
+    .select({
+      id: schema.expenseEntries.id,
+      transactionId: schema.expenseEntries.transactionId,
+    })
+    .from(schema.expenseEntries)
+    .where(inArray(schema.expenseEntries.transactionId, txnIds));
+  for (const e of expenses) {
+    if (e.transactionId) expense.set(e.transactionId, e.id);
+  }
+
+  const incomes = await db
+    .select({
+      id: schema.incomeEntries.id,
+      transactionId: schema.incomeEntries.transactionId,
+    })
+    .from(schema.incomeEntries)
+    .where(inArray(schema.incomeEntries.transactionId, txnIds));
+  for (const i of incomes) {
+    if (i.transactionId) income.set(i.transactionId, i.id);
+  }
+
+  return { expense, income };
+}
+
 export const statementsRouter = new Hono();
 
-statementsRouter.get('/', async (c) => {
+statementsRouter.get('/', validateQuery(paginationQuerySchema), async (c) => {
   const user = c.get('user');
   const db = c.get('db');
+  const query = c.get('query') as unknown as ReturnType<
+    typeof paginationQuerySchema.parse
+  >;
+  const { limit, offset } = resolveLimitOffset(query);
+
+  const [countRow] = await db
+    .select({ count: sql<number>`count(*)` })
+    .from(schema.statementUploads)
+    .where(eq(schema.statementUploads.userId, user.id));
+  const total = Number(countRow?.count ?? 0);
 
   const statements = await db
     .select()
     .from(schema.statementUploads)
     .where(eq(schema.statementUploads.userId, user.id))
-    .orderBy(desc(schema.statementUploads.uploadedAt));
+    .orderBy(desc(schema.statementUploads.uploadedAt))
+    .limit(limit)
+    .offset(offset);
 
-  return c.json(statements);
+  return c.json(paginated(statements, total, limit, offset));
 });
+
+statementsRouter.get(
+  '/transactions',
+  validateQuery(listTransactionsQuerySchema),
+  async (c) => {
+    const user = c.get('user');
+    const db = c.get('db');
+    const query = c.get('query') as unknown as ReturnType<
+      typeof listTransactionsQuerySchema.parse
+    >;
+    const { limit, offset } = resolveLimitOffset(query);
+
+    const conditions: ReturnType<typeof eq>[] = [
+      eq(schema.transactions.userId, user.id),
+    ];
+
+    if (query.hideInternal !== 'false') {
+      conditions.push(eq(schema.transactions.isInternalBookkeeping, false));
+    }
+
+    if (query.transactionType) {
+      conditions.push(
+        eq(schema.transactions.transactionType, query.transactionType),
+      );
+    }
+
+    const [countRow] = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(schema.transactions)
+      .where(and(...conditions));
+    const total = Number(countRow?.count ?? 0);
+
+    const transactions = await db
+      .select({
+        id: schema.transactions.id,
+        statementUploadId: schema.transactions.statementUploadId,
+        postedDate: schema.transactions.postedDate,
+        descriptionNormalized: schema.transactions.descriptionNormalized,
+        descriptionRaw: schema.transactions.descriptionRaw,
+        amountCents: schema.transactions.amountCents,
+        currency: schema.transactions.currency,
+        direction: schema.transactions.direction,
+        merchantName: schema.transactions.merchantName,
+        categoryId: schema.transactions.categoryId,
+        categoryName: schema.categories.name,
+        isUserCorrected: schema.transactions.isUserCorrected,
+        transactionType: schema.transactions.transactionType,
+        createdAt: schema.transactions.createdAt,
+      })
+      .from(schema.transactions)
+      .leftJoin(
+        schema.categories,
+        eq(schema.transactions.categoryId, schema.categories.id),
+      )
+      .where(and(...conditions))
+      .orderBy(desc(schema.transactions.postedDate))
+      .limit(limit)
+      .offset(offset);
+
+    const txnIds = transactions.map((t) => t.id);
+    const { expense: convertedToExpense, income: convertedToIncome } =
+      await getConvertedMaps(db, txnIds);
+
+    return c.json(
+      paginated(
+        transactions.map((t) => ({
+          ...serializeTransaction(t),
+          convertedToExpenseId: convertedToExpense.get(t.id) ?? null,
+          convertedToIncomeId: convertedToIncome.get(t.id) ?? null,
+        })),
+        total,
+        limit,
+        offset,
+      ),
+    );
+  },
+);
 
 statementsRouter.get('/:id', async (c) => {
   const user = c.get('user');
@@ -64,6 +196,7 @@ statementsRouter.get(
     const query = c.get('query') as unknown as ReturnType<
       typeof listTransactionsQuerySchema.parse
     >;
+    const { limit, offset } = resolveLimitOffset(query);
 
     const conditions: ReturnType<typeof eq>[] = [
       eq(schema.transactions.statementUploadId, id),
@@ -80,11 +213,18 @@ statementsRouter.get(
       );
     }
 
+    const [countRow] = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(schema.transactions)
+      .where(and(...conditions));
+    const total = Number(countRow?.count ?? 0);
+
     const transactions = await db
       .select({
         id: schema.transactions.id,
         postedDate: schema.transactions.postedDate,
         descriptionNormalized: schema.transactions.descriptionNormalized,
+        descriptionRaw: schema.transactions.descriptionRaw,
         amountCents: schema.transactions.amountCents,
         currency: schema.transactions.currency,
         direction: schema.transactions.direction,
@@ -101,42 +241,25 @@ statementsRouter.get(
         eq(schema.transactions.categoryId, schema.categories.id),
       )
       .where(and(...conditions))
-      .orderBy(desc(schema.transactions.postedDate)).limit(query.limit ?? 50).offset(query.offset ?? 0);
+      .orderBy(desc(schema.transactions.postedDate))
+      .limit(limit)
+      .offset(offset);
 
     const txnIds = transactions.map((t) => t.id);
-    const convertedToExpense = new Map<string, string>();
-    const convertedToIncome = new Map<string, string>();
-
-    if (txnIds.length > 0) {
-      const expenses = await db
-        .select({
-          id: schema.expenseEntries.id,
-          transactionId: schema.expenseEntries.transactionId,
-        })
-        .from(schema.expenseEntries)
-        .where(inArray(schema.expenseEntries.transactionId, txnIds));
-      for (const e of expenses) {
-        if (e.transactionId) convertedToExpense.set(e.transactionId, e.id);
-      }
-
-      const incomes = await db
-        .select({
-          id: schema.incomeEntries.id,
-          transactionId: schema.incomeEntries.transactionId,
-        })
-        .from(schema.incomeEntries)
-        .where(inArray(schema.incomeEntries.transactionId, txnIds));
-      for (const i of incomes) {
-        if (i.transactionId) convertedToIncome.set(i.transactionId, i.id);
-      }
-    }
+    const { expense: convertedToExpense, income: convertedToIncome } =
+      await getConvertedMaps(db, txnIds);
 
     return c.json(
-      transactions.map((t) => ({
-        ...serializeTransaction(t),
-        convertedToExpenseId: convertedToExpense.get(t.id) ?? null,
-        convertedToIncomeId: convertedToIncome.get(t.id) ?? null,
-      })),
+      paginated(
+        transactions.map((t) => ({
+          ...serializeTransaction(t),
+          convertedToExpenseId: convertedToExpense.get(t.id) ?? null,
+          convertedToIncomeId: convertedToIncome.get(t.id) ?? null,
+        })),
+        total,
+        limit,
+        offset,
+      ),
     );
   },
 );
@@ -311,23 +434,38 @@ statementsRouter.post('/transactions/:id/convert-to-expense', async (c) => {
     throw new HTTPException(400, { message: 'No active budget period found' });
   }
 
-  const [expense] = await db
-    .insert(schema.expenseEntries)
-    .values({
-      id: generateId(),
-      userId: user.id,
-      budgetPeriodId: budgetPeriod.id,
-      transactionId: transaction.id,
-      categoryId: transaction.categoryId ?? null,
-      amountCents: transaction.amountCents,
-      expenseDate: transaction.postedDate,
-      description: transaction.descriptionRaw,
-      sourceType: 'statement_import',
-      merchantName: transaction.merchantName ?? null,
-      createdAt: nowISO(),
-      updatedAt: nowISO(),
-    })
-    .returning();
+  const expenseDate = transaction.postedDate.split('T')[0];
+  const week = await findWeekForDate(db, budgetPeriod.id, expenseDate);
+
+  const queries: D1Query[] = [
+    db
+      .insert(schema.expenseEntries)
+      .values({
+        id: generateId(),
+        userId: user.id,
+        budgetPeriodId: budgetPeriod.id,
+        weeklyBudgetAllocationId: week?.id ?? null,
+        transactionId: transaction.id,
+        categoryId: transaction.categoryId ?? null,
+        amountCents: transaction.amountCents,
+        expenseDate,
+        description: transaction.descriptionRaw,
+        sourceType: 'statement_import',
+        merchantName: transaction.merchantName ?? null,
+        createdAt: nowISO(),
+        updatedAt: nowISO(),
+      })
+      .returning(),
+  ];
+
+  if (week) {
+    queries.push(buildWeekCacheUpdate(db, week.id, transaction.amountCents));
+  }
+
+  const results = await db.batch(queries as [D1Query, ...D1Query[]]);
+  const [expense] = results[0] as InferSelectModel<
+    typeof schema.expenseEntries
+  >[];
 
   return c.json(expense, 201);
 });

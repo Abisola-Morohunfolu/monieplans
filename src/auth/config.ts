@@ -118,7 +118,9 @@ export function createAuth(
         clientId: env.GITHUB_CLIENT_ID || '',
         clientSecret: env.GITHUB_CLIENT_SECRET || '',
         mapProfileToUser: async (profile) => ({
-          email: profile.email || `${profile.id}+${profile.login}@users.noreply.github.com`,
+          email:
+            profile.email ||
+            `${profile.id}+${profile.login}@users.noreply.github.com`,
         }),
       },
     },

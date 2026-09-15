@@ -1,29 +1,39 @@
-import { createFileRoute } from '@tanstack/react-router'
-import { Wallet, TrendingUp, AlertCircle, Receipt } from 'lucide-react'
-import { useBudgets, useActiveBudget } from '../../hooks/useBudgets'
-import { useExpenses } from '../../hooks/useExpenses'
+import { createFileRoute, Link, redirect } from '@tanstack/react-router'
+import { Wallet, TrendingUp, AlertCircle, Plus, Receipt } from 'lucide-react'
+import { useActiveBudget } from '../../hooks/useBudgets'
+import { useBudgetSummary } from '../../hooks/useBudget'
 import { useRecommendations } from '../../hooks/useAnalytics'
 import { usePreferredCurrency } from '../../hooks/useCurrency'
+import { api } from '../../lib/api'
 import { formatCurrency } from '../../lib/currency'
+import { ProgressBar } from '../../components/ui/ProgressBar'
 
 export const Route = createFileRoute('/_authenticated/dashboard')({
+  beforeLoad: async () => {
+    const { data } = await api.get<{ data: unknown[] }>('/api/budgets')
+    if (!data.data || data.data.length === 0) {
+      throw redirect({ to: '/onboarding' })
+    }
+  },
   component: DashboardPage,
 })
 
 function DashboardPage() {
-  const { data: budgets, isLoading: budgetsLoading } = useBudgets()
   const { data: activeBudget, isLoading: activeBudgetLoading } = useActiveBudget()
-  const { data: expenses, isLoading: expensesLoading } = useExpenses()
-  const { data: recommendations, isLoading: recsLoading } = useRecommendations()
+  const { data: summary, isLoading: summaryLoading } = useBudgetSummary(
+    activeBudget?.id ?? '',
+  )
+  const { data: recommendations } = useRecommendations()
   const currency = usePreferredCurrency()
 
-  const isLoading = budgetsLoading || activeBudgetLoading || expensesLoading || recsLoading
+  const isLoading = activeBudgetLoading || summaryLoading
 
-  const totalExpenses = expenses?.reduce((sum, e) => sum + Number(e.amount), 0) ?? 0
-  const budgetCap = activeBudget ? Number(activeBudget.cap) : 0
-  const remaining = budgetCap - totalExpenses
-  const recentTransactions = expenses?.slice(0, 5) ?? []
-  const recommendationCount = recommendations?.filter((r) => r.status === 'pending').length ?? 0
+  const cap = summary?.cap ?? Number(activeBudget?.cap ?? 0)
+  const spent = summary?.spent ?? 0
+  const remaining = summary?.remaining ?? cap - spent
+  const incomeTotal = summary?.incomeTotal ?? 0
+  const recommendationCount =
+    recommendations?.data?.filter((r) => r.status === 'active').length ?? 0
 
   if (isLoading) {
     return (
@@ -48,6 +58,10 @@ function DashboardPage() {
           <h2 className="font-heading text-3xl font-medium text-text-primary">Dashboard</h2>
           <p className="text-text-secondary mt-1">Here's your financial overview.</p>
         </div>
+        <Link to="/expenses" className="btn-primary">
+          <Plus className="w-5 h-5" />
+          Log expense
+        </Link>
       </header>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -56,14 +70,10 @@ function DashboardPage() {
             <div className="p-3 bg-sage/20 rounded-2xl text-forest">
               <Wallet className="w-6 h-6" />
             </div>
-            <span className="badge-sage">
-              <TrendingUp className="w-3.5 h-3.5 mr-1" />
-              {budgets?.length ?? 0} budgets
-            </span>
           </div>
           <p className="text-sm text-text-tertiary font-medium">Active Budget Cap</p>
           <h3 className="font-heading text-3xl font-medium mt-1 text-text-primary">
-            {formatCurrency(budgetCap, activeBudget?.currency ?? currency)}
+            {formatCurrency(cap, activeBudget?.currency ?? currency)}
           </h3>
         </div>
 
@@ -73,15 +83,13 @@ function DashboardPage() {
               <TrendingUp className="w-6 h-6" />
             </div>
           </div>
-          <p className="text-sm text-text-tertiary font-medium">Total Expenses</p>
+          <p className="text-sm text-text-tertiary font-medium">Spent</p>
           <h3 className="font-heading text-3xl font-medium mt-1 text-text-primary">
-            {formatCurrency(totalExpenses, currency)}
+            {formatCurrency(spent, currency)}
           </h3>
-          {budgetCap > 0 && (
-            <p className="text-xs text-text-tertiary mt-2">
-              {formatCurrency(remaining, currency)} remaining
-            </p>
-          )}
+          <p className="text-xs text-text-tertiary mt-2">
+            {formatCurrency(remaining, currency)} remaining · {formatCurrency(incomeTotal, currency)} income
+          </p>
         </div>
 
         <div className="card">
@@ -98,33 +106,57 @@ function DashboardPage() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <div className="lg:col-span-2 card h-96 flex items-center justify-center">
-          <p className="text-text-tertiary">Spending Chart Placeholder</p>
+        <div className="lg:col-span-2 card">
+          <h3 className="font-heading text-xl font-semibold mb-4 text-text-primary">Spending</h3>
+          <div className="mb-3">
+            <ProgressBar value={spent} max={cap || 1} color={spent > cap ? 'rust' : 'sage'} />
+          </div>
+          <p className="text-sm text-text-secondary">
+            {cap > 0
+              ? `${Math.round((spent / cap) * 100)}% of your budget used`
+              : 'Set a budget cap to track usage.'}
+          </p>
+
+          <div className="mt-6">
+            <h4 className="text-sm font-medium text-text-secondary mb-3">By category</h4>
+            {!summary?.categoryTotals || summary.categoryTotals.length === 0 ? (
+              <div className="flex items-center gap-2 text-text-tertiary py-4">
+                <Receipt className="w-4 h-4" /> No spending yet this period.
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {summary.categoryTotals.map((cat) => (
+                  <div key={cat.categoryId ?? cat.categoryName ?? 'uncategorized'} className="flex items-center gap-3">
+                    <span className="text-sm text-text-primary w-40 truncate">
+                      {cat.categoryName ?? 'Uncategorized'}
+                    </span>
+                    <div className="flex-1">
+                      <ProgressBar value={cat.amount} max={spent || 1} />
+                    </div>
+                    <span className="text-sm text-text-secondary w-24 text-right">
+                      {formatCurrency(cat.amount, currency)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
 
         <div className="card">
-          <h3 className="font-heading text-xl font-semibold mb-4 text-text-primary">Recent Transactions</h3>
-          {recentTransactions.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-8 text-center">
-              <Receipt className="w-10 h-10 text-sage mb-3" />
-              <p className="text-text-tertiary">No transactions yet.</p>
-            </div>
+          <h3 className="font-heading text-xl font-semibold mb-4 text-text-primary">Recommendations</h3>
+          {recommendationCount === 0 ? (
+            <p className="text-text-tertiary text-sm">No new recommendations.</p>
           ) : (
             <div className="space-y-3">
-              {recentTransactions.map((tx) => (
-                <div key={tx.id} className="flex items-center justify-between p-3 rounded-2xl hover:bg-text-primary/3 transition-colors">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-sage/20 flex items-center justify-center text-forest text-sm font-medium">
-                      {tx.description?.charAt(0).toUpperCase() || 'T'}
-                    </div>
-                    <div>
-                      <p className="font-medium text-sm text-text-primary">{tx.description || 'Transaction'}</p>
-                      <p className="text-xs text-text-tertiary">{new Date(tx.date ?? '').toLocaleDateString()}</p>
-                    </div>
+              {recommendations?.data
+                ?.filter((r) => r.status === 'active')
+                .map((r) => (
+                  <div key={r.id} className="p-3 rounded-2xl bg-text-primary/3">
+                    <p className="text-sm font-medium text-text-primary">{r.title}</p>
+                    <p className="text-xs text-text-secondary mt-1">{r.body}</p>
                   </div>
-                  <p className="font-medium text-sm text-text-primary">-{formatCurrency(Number(tx.amount), currency)}</p>
-                </div>
-              ))}
+                ))}
             </div>
           )}
         </div>
