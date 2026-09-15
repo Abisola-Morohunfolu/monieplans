@@ -1,9 +1,9 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '../lib/api'
 import { queryKeys } from '../lib/queryKeys'
-import type { AnalyticsRecommendation } from '../types'
+import type { AnalyticsRecommendation, Paginated } from '../types'
 
-async function fetchRecommendations(): Promise<AnalyticsRecommendation[]> {
+async function fetchRecommendations(): Promise<Paginated<AnalyticsRecommendation>> {
   const { data } = await api.get('/api/analytics/recommendations')
   return data
 }

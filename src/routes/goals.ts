@@ -9,9 +9,11 @@ import {
   createGoalSchema,
   updateGoalSchema,
   reserveGoalSchema,
+  paginationQuerySchema,
 } from '../shared/schemas';
-import { validateJson } from '../shared/validate';
+import { validateJson, validateQuery } from '../shared/validate';
 import { getBudgetPeriodOrThrow, type D1Query } from './helpers';
+import { paginated, resolveLimitOffset } from '../shared/pagination';
 
 export const goalsRouter = new Hono();
 
@@ -42,9 +44,19 @@ goalsRouter.post('/', validateJson(createGoalSchema), async (c) => {
   return c.json(serializeGoal(goal), 201);
 });
 
-goalsRouter.get('/', async (c) => {
+goalsRouter.get('/', validateQuery(paginationQuerySchema), async (c) => {
   const user = c.get('user');
   const db = c.get('db');
+  const query = c.get('query') as unknown as ReturnType<
+    typeof paginationQuerySchema.parse
+  >;
+  const { limit, offset } = resolveLimitOffset(query);
+
+  const [countRow] = await db
+    .select({ count: sql<number>`count(*)` })
+    .from(schema.savingsGoals)
+    .where(eq(schema.savingsGoals.userId, user.id));
+  const total = Number(countRow?.count ?? 0);
 
   const goals = await db
     .select()
@@ -53,9 +65,11 @@ goalsRouter.get('/', async (c) => {
     .orderBy(
       schema.savingsGoals.priorityRank,
       desc(schema.savingsGoals.createdAt),
-    );
+    )
+    .limit(limit)
+    .offset(offset);
 
-  return c.json(goals.map(serializeGoal));
+  return c.json(paginated(goals.map(serializeGoal), total, limit, offset));
 });
 
 goalsRouter.get('/reservations/:budgetPeriodId', async (c) => {

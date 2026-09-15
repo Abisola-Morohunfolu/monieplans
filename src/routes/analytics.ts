@@ -1,32 +1,56 @@
 import { Hono } from 'hono';
 import { HTTPException } from 'hono/http-exception';
-import { and, eq } from 'drizzle-orm';
+import { and, desc, eq, sql } from 'drizzle-orm';
 import * as schema from '../database/schema';
 import { generateId, nowISO, toCents } from '../shared/utils';
 import {
   updateRecommendationStatusSchema,
   generateInsightsSchema,
+  paginationQuerySchema,
 } from '../shared/schemas';
-import { validateJson } from '../shared/validate';
+import { validateJson, validateQuery } from '../shared/validate';
+import { paginated, resolveLimitOffset } from '../shared/pagination';
 
 export const analyticsRouter = new Hono();
 
-analyticsRouter.get('/recommendations', async (c) => {
-  const user = c.get('user');
-  const db = c.get('db');
+analyticsRouter.get(
+  '/recommendations',
+  validateQuery(paginationQuerySchema),
+  async (c) => {
+    const user = c.get('user');
+    const db = c.get('db');
+    const query = c.get('query') as unknown as ReturnType<
+      typeof paginationQuerySchema.parse
+    >;
+    const { limit, offset } = resolveLimitOffset(query);
 
-  const recommendations = await db
-    .select()
-    .from(schema.recommendationSnapshots)
-    .where(
-      and(
-        eq(schema.recommendationSnapshots.userId, user.id),
-        eq(schema.recommendationSnapshots.status, 'active'),
-      ),
-    );
+    const [countRow] = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(schema.recommendationSnapshots)
+      .where(
+        and(
+          eq(schema.recommendationSnapshots.userId, user.id),
+          eq(schema.recommendationSnapshots.status, 'active'),
+        ),
+      );
+    const total = Number(countRow?.count ?? 0);
 
-  return c.json(recommendations);
-});
+    const recommendations = await db
+      .select()
+      .from(schema.recommendationSnapshots)
+      .where(
+        and(
+          eq(schema.recommendationSnapshots.userId, user.id),
+          eq(schema.recommendationSnapshots.status, 'active'),
+        ),
+      )
+      .orderBy(desc(schema.recommendationSnapshots.createdAt))
+      .limit(limit)
+      .offset(offset);
+
+    return c.json(paginated(recommendations, total, limit, offset));
+  },
+);
 
 analyticsRouter.patch(
   '/recommendations/:id/status',

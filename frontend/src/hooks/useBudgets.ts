@@ -1,10 +1,10 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '../lib/api'
 import { queryKeys } from '../lib/queryKeys'
-import type { Budget } from '../types'
+import type { Budget, CreateBudgetInput, Paginated } from '../types'
 
-async function fetchBudgets(): Promise<Budget[]> {
-  const { data } = await api.get('/api/budgets')
+async function fetchBudgets(params?: { limit?: number; offset?: number }): Promise<Paginated<Budget>> {
+  const { data } = await api.get('/api/budgets', { params })
   return data
 }
 
@@ -13,10 +13,10 @@ async function fetchActiveBudget(): Promise<Budget | null> {
   return data
 }
 
-export function useBudgets() {
+export function useBudgets(params?: { limit?: number; offset?: number }) {
   return useQuery({
-    queryKey: queryKeys.budgets.all,
-    queryFn: fetchBudgets,
+    queryKey: ['budgets', params] as const,
+    queryFn: () => fetchBudgets(params),
   })
 }
 
@@ -31,9 +31,10 @@ export function useCreateBudget() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: (data: Partial<Budget>) => api.post('/api/budgets', data),
+    mutationFn: (data: CreateBudgetInput) => api.post('/api/budgets', data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.budgets.all })
+      queryClient.invalidateQueries({ queryKey: ['budgets'] })
+      queryClient.invalidateQueries({ queryKey: queryKeys.budgets.active })
     },
   })
 }

@@ -48,7 +48,7 @@ function markEmailVerified(): void {
 
 async function seedData(request: APIRequestContext): Promise<void> {
   const budgets = await request.get(`${API}/api/budgets`)
-  const existing = (await budgets.json()) as unknown[]
+  const { data: existing } = (await budgets.json()) as { data: unknown[] }
   if (existing.length > 0) return
 
   // Create + activate the budget the same way a user would.

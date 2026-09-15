@@ -1,8 +1,9 @@
 import { createFileRoute, Link } from '@tanstack/react-router'
-import { Wallet, Lock, CheckCircle, ArrowLeft, CalendarClock, DollarSign, Target } from 'lucide-react'
-import { useBudget, useActivateBudget, useLockBudget } from '../../../hooks/useBudget'
+import { Wallet, Lock, CheckCircle, ArrowLeft, CalendarClock, DollarSign, Target, TrendingUp } from 'lucide-react'
+import { useBudget, useBudgetSummary, useActivateBudget, useLockBudget } from '../../../hooks/useBudget'
 import { usePreferredCurrency } from '../../../hooks/useCurrency'
 import { formatCurrency } from '../../../lib/currency'
+import { ProgressBar } from '../../../components/ui/ProgressBar'
 
 export const Route = createFileRoute('/_authenticated/budgets/$budgetId')({
   component: BudgetDetailsPage,
@@ -11,6 +12,7 @@ export const Route = createFileRoute('/_authenticated/budgets/$budgetId')({
 function BudgetDetailsPage() {
   const { budgetId } = Route.useParams()
   const { data: budget, isLoading } = useBudget(budgetId)
+  const { data: summary } = useBudgetSummary(budgetId)
   const activateMutation = useActivateBudget(budgetId)
   const lockMutation = useLockBudget(budgetId)
   const currency = usePreferredCurrency()
@@ -45,6 +47,11 @@ function BudgetDetailsPage() {
     )
   }
 
+  const cap = summary?.cap ?? Number(budget.cap)
+  const spent = summary?.spent ?? 0
+  const remaining = summary?.remaining ?? cap - spent
+  const allocations = summary?.weeklyAllocations ?? []
+
   return (
     <div className="space-y-8">
       <Link to="/budgets" className="inline-flex items-center gap-2 text-text-secondary hover:text-text-primary transition-colors">
@@ -58,12 +65,12 @@ function BudgetDetailsPage() {
             <div className="p-2 bg-sage/20 text-forest rounded-xl">
               <Wallet className="w-5 h-5" />
             </div>
-            <h2 className="font-heading text-3xl font-medium text-text-primary">
-              {budget.name}
-            </h2>
+            <h2 className="font-heading text-3xl font-medium text-text-primary">{budget.name}</h2>
             {statusBadge(budget.status)}
           </div>
-          <p className="text-text-secondary capitalize">Cycle: {budget.cycle}</p>
+          <p className="text-text-secondary">
+            {budget.periodStartDate} – {budget.periodEndDate}
+          </p>
         </div>
 
         <div className="flex items-center gap-3">
@@ -90,20 +97,27 @@ function BudgetDetailsPage() {
         </div>
       </header>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         <div className="card">
           <div className="flex items-center gap-3 mb-4 text-text-tertiary">
             <DollarSign className="w-5 h-5" />
-            <h3 className="font-medium">Total Cap</h3>
+            <h3 className="font-medium">Cap</h3>
           </div>
-          <p className="font-heading text-3xl font-medium text-text-primary">{formatCurrency(Number(budget.cap), budget.currency ?? currency)}</p>
+          <p className="font-heading text-3xl font-medium text-text-primary">{formatCurrency(cap, budget.currency ?? currency)}</p>
+        </div>
+        <div className="card">
+          <div className="flex items-center gap-3 mb-4 text-text-tertiary">
+            <TrendingUp className="w-5 h-5" />
+            <h3 className="font-medium">Spent</h3>
+          </div>
+          <p className="font-heading text-3xl font-medium text-text-primary">{formatCurrency(spent, budget.currency ?? currency)}</p>
         </div>
         <div className="card">
           <div className="flex items-center gap-3 mb-4 text-text-tertiary">
             <Wallet className="w-5 h-5" />
-            <h3 className="font-medium">Income</h3>
+            <h3 className="font-medium">Remaining</h3>
           </div>
-          <p className="font-heading text-3xl font-medium text-text-primary">{formatCurrency(Number(budget.income), budget.currency ?? currency)}</p>
+          <p className="font-heading text-3xl font-medium text-text-primary">{formatCurrency(remaining, budget.currency ?? currency)}</p>
         </div>
         <div className="card">
           <div className="flex items-center gap-3 mb-4 text-text-tertiary">
@@ -116,10 +130,44 @@ function BudgetDetailsPage() {
 
       <div className="card">
         <h3 className="font-heading text-xl font-semibold mb-6 text-text-primary">Weekly Allocations</h3>
-        <div className="flex flex-col items-center justify-center py-12 text-center">
-          <CalendarClock className="w-12 h-12 mb-4 text-sage/50" />
-          <p className="text-text-secondary max-w-sm">Weekly allocations will appear here when the budget is active and processed.</p>
-        </div>
+        {allocations.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-12 text-center">
+            <CalendarClock className="w-12 h-12 mb-4 text-sage/50" />
+            <p className="text-text-secondary max-w-sm">Weekly allocations will appear here when the budget is active and processed.</p>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {allocations.map((week) => {
+              const pct = week.finalPlannedAmount > 0 ? (week.actualSpent / week.finalPlannedAmount) * 100 : 0
+              return (
+                <div key={week.id} className="p-4 rounded-2xl bg-text-primary/3">
+                  <div className="flex items-center justify-between mb-2">
+                    <div>
+                      <p className="text-sm font-medium text-text-primary">
+                        Week {week.weekIndex + 1}
+                      </p>
+                      <p className="text-xs text-text-tertiary">
+                        {week.weekStartDate} – {week.weekEndDate}
+                      </p>
+                    </div>
+                    <span className={`badge-${week.status === 'completed' ? 'neutral' : week.status === 'current' ? 'sage' : 'neutral'}`}>
+                      {week.status}
+                    </span>
+                  </div>
+                  <ProgressBar
+                    value={week.actualSpent}
+                    max={week.finalPlannedAmount || 1}
+                    color={pct > 100 ? 'rust' : 'sage'}
+                  />
+                  <div className="flex justify-between mt-2 text-xs text-text-secondary">
+                    <span>{formatCurrency(week.actualSpent, budget.currency ?? currency)} spent</span>
+                    <span>{formatCurrency(week.remaining, budget.currency ?? currency)} left</span>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        )}
       </div>
     </div>
   )

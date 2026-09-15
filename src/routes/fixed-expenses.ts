@@ -1,15 +1,17 @@
 import { Hono } from 'hono';
 import { HTTPException } from 'hono/http-exception';
-import { and, desc, eq } from 'drizzle-orm';
+import { and, desc, eq, sql } from 'drizzle-orm';
 import * as schema from '../database/schema';
 import { generateId, nowISO, toCents } from '../shared/utils';
 import { serializeFixedExpenseTemplate } from '../shared/serializers';
 import {
   createFixedExpenseTemplateSchema,
   updateFixedExpenseTemplateSchema,
+  paginationQuerySchema,
 } from '../shared/schemas';
-import { validateJson } from '../shared/validate';
+import { validateJson, validateQuery } from '../shared/validate';
 import { assertCategoryVisible, getBudgetPeriodOrThrow } from './helpers';
+import { paginated, resolveLimitOffset } from '../shared/pagination';
 
 export const fixedExpensesRouter = new Hono();
 
@@ -51,32 +53,55 @@ fixedExpensesRouter.post(
   },
 );
 
-fixedExpensesRouter.get('/templates', async (c) => {
-  const user = c.get('user');
-  const db = c.get('db');
+fixedExpensesRouter.get(
+  '/templates',
+  validateQuery(paginationQuerySchema),
+  async (c) => {
+    const user = c.get('user');
+    const db = c.get('db');
+    const query = c.get('query') as unknown as ReturnType<
+      typeof paginationQuerySchema.parse
+    >;
+    const { limit, offset } = resolveLimitOffset(query);
 
-  const templates = await db
-    .select({
-      id: schema.fixedExpenseTemplates.id,
-      name: schema.fixedExpenseTemplates.name,
-      amountCents: schema.fixedExpenseTemplates.amountCents,
-      categoryId: schema.fixedExpenseTemplates.categoryId,
-      categoryName: schema.categories.name,
-      cadence: schema.fixedExpenseTemplates.cadence,
-      defaultDueDay: schema.fixedExpenseTemplates.defaultDueDay,
-      createdAt: schema.fixedExpenseTemplates.createdAt,
-      updatedAt: schema.fixedExpenseTemplates.updatedAt,
-    })
-    .from(schema.fixedExpenseTemplates)
-    .leftJoin(
-      schema.categories,
-      eq(schema.fixedExpenseTemplates.categoryId, schema.categories.id),
-    )
-    .where(eq(schema.fixedExpenseTemplates.userId, user.id))
-    .orderBy(desc(schema.fixedExpenseTemplates.createdAt));
+    const [countRow] = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(schema.fixedExpenseTemplates)
+      .where(eq(schema.fixedExpenseTemplates.userId, user.id));
+    const total = Number(countRow?.count ?? 0);
 
-  return c.json(templates.map(serializeFixedExpenseTemplate));
-});
+    const templates = await db
+      .select({
+        id: schema.fixedExpenseTemplates.id,
+        name: schema.fixedExpenseTemplates.name,
+        amountCents: schema.fixedExpenseTemplates.amountCents,
+        categoryId: schema.fixedExpenseTemplates.categoryId,
+        categoryName: schema.categories.name,
+        cadence: schema.fixedExpenseTemplates.cadence,
+        defaultDueDay: schema.fixedExpenseTemplates.defaultDueDay,
+        createdAt: schema.fixedExpenseTemplates.createdAt,
+        updatedAt: schema.fixedExpenseTemplates.updatedAt,
+      })
+      .from(schema.fixedExpenseTemplates)
+      .leftJoin(
+        schema.categories,
+        eq(schema.fixedExpenseTemplates.categoryId, schema.categories.id),
+      )
+      .where(eq(schema.fixedExpenseTemplates.userId, user.id))
+      .orderBy(desc(schema.fixedExpenseTemplates.createdAt))
+      .limit(limit)
+      .offset(offset);
+
+    return c.json(
+      paginated(
+        templates.map(serializeFixedExpenseTemplate),
+        total,
+        limit,
+        offset,
+      ),
+    );
+  },
+);
 
 fixedExpensesRouter.get('/templates/:id', async (c) => {
   const user = c.get('user');

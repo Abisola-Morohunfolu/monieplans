@@ -1,12 +1,13 @@
 import { Hono } from 'hono';
 import { generateId, nowISO, toCents, fromCents } from '../shared/utils';
-import { serializeBudget } from '../shared/serializers';
-import { createBudgetSchema } from '../shared/schemas';
-import { validateJson } from '../shared/validate';
-import { and, desc, eq, sql } from 'drizzle-orm';
+import { serializeBudget, serializeAllocation } from '../shared/serializers';
+import { createBudgetSchema, paginationQuerySchema } from '../shared/schemas';
+import { validateJson, validateQuery } from '../shared/validate';
+import { and, asc, desc, eq, isNull, sql } from 'drizzle-orm';
 import type { InferSelectModel } from 'drizzle-orm';
 import * as schema from '../database/schema';
 import { getBudgetPeriodOrThrow, type D1Query, type Db } from './helpers';
+import { paginated, resolveLimitOffset } from '../shared/pagination';
 
 type BudgetPeriodRow = InferSelectModel<typeof schema.budgetPeriods>;
 
@@ -81,17 +82,29 @@ budgetsRouter.post('/', validateJson(createBudgetSchema), async (c) => {
   return c.json(serializeBudget(period), 201);
 });
 
-budgetsRouter.get('/', async (c) => {
+budgetsRouter.get('/', validateQuery(paginationQuerySchema), async (c) => {
   const user = c.get('user');
   const db = c.get('db');
+  const query = c.get('query') as unknown as ReturnType<
+    typeof paginationQuerySchema.parse
+  >;
+  const { limit, offset } = resolveLimitOffset(query);
+
+  const [countRow] = await db
+    .select({ count: sql<number>`count(*)` })
+    .from(schema.budgetPeriods)
+    .where(eq(schema.budgetPeriods.userId, user.id));
+  const total = Number(countRow?.count ?? 0);
 
   const periods = await db
     .select()
     .from(schema.budgetPeriods)
     .where(eq(schema.budgetPeriods.userId, user.id))
-    .orderBy(desc(schema.budgetPeriods.periodStartDate));
+    .orderBy(desc(schema.budgetPeriods.periodStartDate))
+    .limit(limit)
+    .offset(offset);
 
-  return c.json(periods.map(serializeBudget));
+  return c.json(paginated(periods.map(serializeBudget), total, limit, offset));
 });
 
 budgetsRouter.get('/active', async (c) => {
@@ -121,6 +134,108 @@ budgetsRouter.get('/:id', async (c) => {
   const period = await getBudgetPeriodOrThrow(db, user.id, id);
 
   return c.json(serializeBudget(period));
+});
+
+budgetsRouter.get('/:id/allocations', async (c) => {
+  const user = c.get('user');
+  const db = c.get('db');
+  const id = c.req.param('id');
+
+  await getBudgetPeriodOrThrow(db, user.id, id);
+
+  const allocations = await db
+    .select()
+    .from(schema.weeklyBudgetAllocations)
+    .where(eq(schema.weeklyBudgetAllocations.budgetPeriodId, id))
+    .orderBy(asc(schema.weeklyBudgetAllocations.weekIndex));
+
+  return c.json(allocations.map(serializeAllocation));
+});
+
+budgetsRouter.get('/:id/summary', async (c) => {
+  const user = c.get('user');
+  const db = c.get('db');
+  const id = c.req.param('id');
+
+  const period = await getBudgetPeriodOrThrow(db, user.id, id);
+
+  const capCents =
+    period.monthlyBudgetCapAmountCents ?? period.monthlyIncomeAmountCents ?? 0;
+
+  const [expenseRow] = await db
+    .select({
+      spent: sql<number>`coalesce(sum(${schema.expenseEntries.amountCents}), 0)`,
+    })
+    .from(schema.expenseEntries)
+    .where(
+      and(
+        eq(schema.expenseEntries.userId, user.id),
+        eq(schema.expenseEntries.budgetPeriodId, id),
+        isNull(schema.expenseEntries.deletedAt),
+      ),
+    );
+  const spentCents = Number(expenseRow?.spent ?? 0);
+
+  const [incomeRow] = await db
+    .select({
+      income: sql<number>`coalesce(sum(${schema.incomeEntries.amountCents}), 0)`,
+    })
+    .from(schema.incomeEntries)
+    .where(
+      and(
+        eq(schema.incomeEntries.userId, user.id),
+        eq(schema.incomeEntries.budgetPeriodId, id),
+        isNull(schema.incomeEntries.deletedAt),
+      ),
+    );
+  const incomeCents = Number(incomeRow?.income ?? 0);
+
+  const categoryTotals = await db
+    .select({
+      categoryId: schema.categories.id,
+      categoryName: schema.categories.name,
+      categoryCode: schema.categories.code,
+      totalCents: sql<number>`coalesce(sum(${schema.expenseEntries.amountCents}), 0)`,
+    })
+    .from(schema.expenseEntries)
+    .leftJoin(
+      schema.categories,
+      eq(schema.expenseEntries.categoryId, schema.categories.id),
+    )
+    .where(
+      and(
+        eq(schema.expenseEntries.userId, user.id),
+        eq(schema.expenseEntries.budgetPeriodId, id),
+        isNull(schema.expenseEntries.deletedAt),
+      ),
+    )
+    .groupBy(
+      schema.categories.id,
+      schema.categories.name,
+      schema.categories.code,
+    )
+    .orderBy(sql`sum(${schema.expenseEntries.amountCents}) desc`);
+
+  const allocations = await db
+    .select()
+    .from(schema.weeklyBudgetAllocations)
+    .where(eq(schema.weeklyBudgetAllocations.budgetPeriodId, id))
+    .orderBy(asc(schema.weeklyBudgetAllocations.weekIndex));
+
+  return c.json({
+    ...serializeBudget(period),
+    cap: fromCents(capCents),
+    incomeTotal: fromCents(incomeCents),
+    spent: fromCents(spentCents),
+    remaining: fromCents(capCents - spentCents),
+    categoryTotals: categoryTotals.map((t) => ({
+      categoryId: t.categoryId,
+      categoryName: t.categoryName,
+      categoryCode: t.categoryCode,
+      amount: fromCents(Number(t.totalCents)),
+    })),
+    weeklyAllocations: allocations.map(serializeAllocation),
+  });
 });
 
 budgetsRouter.post('/:id/activate', async (c) => {

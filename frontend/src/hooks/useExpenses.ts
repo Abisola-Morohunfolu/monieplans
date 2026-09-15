@@ -1,9 +1,9 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '../lib/api'
 import { queryKeys } from '../lib/queryKeys'
-import type { Expense, ExpenseParams } from '../types'
+import type { CreateExpenseInput, Expense, ExpenseParams, Paginated } from '../types'
 
-async function fetchExpenses(params?: ExpenseParams): Promise<Expense[]> {
+async function fetchExpenses(params?: ExpenseParams): Promise<Paginated<Expense>> {
   const { data } = await api.get('/api/expenses', { params })
   return data
 }
@@ -15,7 +15,7 @@ async function fetchExpense(id: string): Promise<Expense> {
 
 export function useExpenses(params?: ExpenseParams) {
   return useQuery({
-    queryKey: queryKeys.expenses.list,
+    queryKey: queryKeys.expenses.list(params),
     queryFn: () => fetchExpenses(params),
   })
 }
@@ -32,9 +32,10 @@ export function useCreateExpense() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: (data: Partial<Expense>) => api.post('/api/expenses', data),
+    mutationFn: (data: CreateExpenseInput) => api.post('/api/expenses', data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.expenses.all })
+      queryClient.invalidateQueries({ queryKey: ['expenses'] })
+      queryClient.invalidateQueries({ queryKey: ['budgets'] })
     },
   })
 }
@@ -43,10 +44,11 @@ export function useUpdateExpense() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: ({ id, data }: { id: string; data: Partial<Expense> }) =>
+    mutationFn: ({ id, data }: { id: string; data: Partial<CreateExpenseInput> }) =>
       api.patch(`/api/expenses/${id}`, data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.expenses.all })
+      queryClient.invalidateQueries({ queryKey: ['expenses'] })
+      queryClient.invalidateQueries({ queryKey: ['budgets'] })
     },
   })
 }
@@ -56,24 +58,9 @@ export function useDeleteExpense() {
 
   return useMutation({
     mutationFn: (expenseId: string) => api.delete(`/api/expenses/${expenseId}`),
-
-    onMutate: async (expenseId) => {
-      await queryClient.cancelQueries({ queryKey: queryKeys.expenses.all })
-      const previous = queryClient.getQueryData<Expense[]>(queryKeys.expenses.all)
-
-      queryClient.setQueryData<Expense[]>(queryKeys.expenses.all, (old) =>
-        old?.filter((e) => e.id !== expenseId),
-      )
-
-      return { previous }
-    },
-
-    onError: (_err, _expenseId, context) => {
-      queryClient.setQueryData(queryKeys.expenses.all, context?.previous)
-    },
-
-    onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.expenses.all })
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['expenses'] })
+      queryClient.invalidateQueries({ queryKey: ['budgets'] })
     },
   })
 }
