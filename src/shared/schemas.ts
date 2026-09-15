@@ -136,6 +136,8 @@ export const confirmReceiptItemsSchema = z.object({
 export const listTransactionsQuerySchema = z.object({
   hideInternal: z.enum(['true', 'false']).optional(),
   transactionType: z.string().optional(),
+  limit: z.number().min(1).optional(),
+  offset: z.number().min(0).optional(),
 });
 
 export const updateTransactionCategorySchema = z.object({
