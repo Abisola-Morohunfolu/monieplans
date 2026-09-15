@@ -83,9 +83,7 @@ statementsRouter.get(
     const transactions = await db
       .select({
         id: schema.transactions.id,
-        statementUploadId: schema.transactions.statementUploadId,
         postedDate: schema.transactions.postedDate,
-        descriptionRaw: schema.transactions.descriptionRaw,
         descriptionNormalized: schema.transactions.descriptionNormalized,
         amountCents: schema.transactions.amountCents,
         currency: schema.transactions.currency,
@@ -94,12 +92,8 @@ statementsRouter.get(
         categoryId: schema.transactions.categoryId,
         categoryName: schema.categories.name,
         isUserCorrected: schema.transactions.isUserCorrected,
-        isExcludedFromAnalysis: schema.transactions.isExcludedFromAnalysis,
-        isInternalBookkeeping: schema.transactions.isInternalBookkeeping,
-        parentTransactionId: schema.transactions.parentTransactionId,
         transactionType: schema.transactions.transactionType,
         createdAt: schema.transactions.createdAt,
-        updatedAt: schema.transactions.updatedAt,
       })
       .from(schema.transactions)
       .leftJoin(
@@ -107,7 +101,7 @@ statementsRouter.get(
         eq(schema.transactions.categoryId, schema.categories.id),
       )
       .where(and(...conditions))
-      .orderBy(desc(schema.transactions.postedDate));
+      .orderBy(desc(schema.transactions.postedDate)).limit(query.limit ?? 50).offset(query.offset ?? 0);
 
     const txnIds = transactions.map((t) => t.id);
     const convertedToExpense = new Map<string, string>();
