@@ -73,8 +73,8 @@ export function useConvertTransactionToExpense(_statementId: string) {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: (transactionId: string) =>
-      api.post(`/api/statements/transactions/${transactionId}/convert-to-expense`),
+    mutationFn: ({ transactionId, budgetId }: { transactionId: string; budgetId: string }) =>
+      api.post(`/api/statements/transactions/${transactionId}/convert-to-expense`, { budgetId }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['statements'] })
       queryClient.invalidateQueries({ queryKey: ['expenses'] })
