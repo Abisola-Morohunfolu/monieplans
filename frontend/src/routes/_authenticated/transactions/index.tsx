@@ -7,6 +7,7 @@ import {
   useUpdateTransactionCategory,
 } from '../../../hooks/useStatements'
 import { usePreferredCurrency } from '../../../hooks/useCurrency'
+import { useActiveBudget } from '../../../hooks/useBudgets'
 import { usePagination, PAGE_SIZE } from '../../../hooks/usePagination'
 import { formatCurrency } from '../../../lib/currency'
 import { CategorySelect } from '../../../components/ui/CategorySelect'
@@ -32,6 +33,7 @@ function TransactionsPage() {
   const convertToIncome = useConvertTransactionToIncome('all')
   const updateCategory = useUpdateTransactionCategory('all')
   const currency = usePreferredCurrency()
+  const { data: activeBudget } = useActiveBudget()
 
   const offset = (page - 1) * PAGE_SIZE
   const { data: transactionsData, isLoading } = useAllTransactions({ limit: PAGE_SIZE, offset })
@@ -73,7 +75,7 @@ function TransactionsPage() {
               const debit = txn.direction === 'debit'
               const converted = isConverted(txn)
               const pending =
-                (convertToExpense.isPending && convertToExpense.variables === txn.id) ||
+                (convertToExpense.isPending && convertToExpense.variables?.transactionId === txn.id) ||
                 (convertToIncome.isPending && convertToIncome.variables === txn.id)
 
               return (
@@ -117,8 +119,8 @@ function TransactionsPage() {
                       </span>
                     ) : debit ? (
                       <button
-                        onClick={() => convertToExpense.mutate(txn.id)}
-                        disabled={pending}
+                        onClick={() => convertToExpense.mutate({ transactionId: txn.id, budgetId: activeBudget!.id })}
+                        disabled={pending || !activeBudget}
                         className="btn-primary text-xs"
                       >
                         <Plus className="w-4 h-4" />

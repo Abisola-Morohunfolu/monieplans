@@ -8,6 +8,7 @@ import { serializeTransaction } from '../shared/serializers';
 import {
   listTransactionsQuerySchema,
   updateTransactionCategorySchema,
+  convertTransactionToExpenseSchema,
   paginationQuerySchema,
 } from '../shared/schemas';
 import { validateJson, validateQuery } from '../shared/validate';
@@ -385,90 +386,98 @@ statementsRouter.post('/upload', async (c) => {
   return c.json(upload, 201);
 });
 
-statementsRouter.post('/transactions/:id/convert-to-expense', async (c) => {
-  const user = c.get('user');
-  const db = c.get('db');
-  const txnId = c.req.param('id');
+statementsRouter.post(
+  '/transactions/:id/convert-to-expense',
+  validateJson(convertTransactionToExpenseSchema),
+  async (c) => {
+    const user = c.get('user');
+    const db = c.get('db');
+    const txnId = c.req.param('id')!;
+    const body = c.get('body') as unknown as ReturnType<
+      typeof convertTransactionToExpenseSchema.parse
+    >;
 
-  const [transaction] = await db
-    .select()
-    .from(schema.transactions)
-    .where(
-      and(
-        eq(schema.transactions.id, txnId),
-        eq(schema.transactions.userId, user.id),
-      ),
-    );
+    const [transaction] = await db
+      .select()
+      .from(schema.transactions)
+      .where(
+        and(
+          eq(schema.transactions.id, txnId),
+          eq(schema.transactions.userId, user.id),
+        ),
+      );
 
-  if (!transaction)
-    throw new HTTPException(404, { message: 'Transaction not found' });
-  if (transaction.direction !== 'debit') {
-    throw new HTTPException(400, {
-      message: 'Only debit transactions can be converted to expenses',
-    });
-  }
+    if (!transaction)
+      throw new HTTPException(404, { message: 'Transaction not found' });
+    if (transaction.direction !== 'debit') {
+      throw new HTTPException(400, {
+        message: 'Only debit transactions can be converted to expenses',
+      });
+    }
 
-  const [existing] = await db
-    .select({ id: schema.expenseEntries.id })
-    .from(schema.expenseEntries)
-    .where(eq(schema.expenseEntries.transactionId, txnId));
-  if (existing) {
-    throw new HTTPException(409, {
-      message: 'Transaction already converted to an expense',
-    });
-  }
+    const [existing] = await db
+      .select({ id: schema.expenseEntries.id })
+      .from(schema.expenseEntries)
+      .where(eq(schema.expenseEntries.transactionId, txnId));
+    if (existing) {
+      throw new HTTPException(409, {
+        message: 'Transaction already converted to an expense',
+      });
+    }
 
-  const [budgetPeriod] = await db
-    .select()
-    .from(schema.budgetPeriods)
-    .where(
-      and(
-        eq(schema.budgetPeriods.userId, user.id),
-        eq(schema.budgetPeriods.status, 'active'),
-      ),
-    )
-    .orderBy(desc(schema.budgetPeriods.periodStartDate))
-    .limit(1);
+    const [budgetPeriod] = await db
+      .select()
+      .from(schema.budgetPeriods)
+      .where(
+        and(
+          eq(schema.budgetPeriods.id, body.budgetId),
+          eq(schema.budgetPeriods.userId, user.id),
+          eq(schema.budgetPeriods.status, 'active'),
+        ),
+      );
 
-  if (!budgetPeriod) {
-    throw new HTTPException(400, { message: 'No active budget period found' });
-  }
+    if (!budgetPeriod) {
+      throw new HTTPException(400, {
+        message: 'Budget period not found or not active',
+      });
+    }
 
-  const expenseDate = transaction.postedDate.split('T')[0];
-  const week = await findWeekForDate(db, budgetPeriod.id, expenseDate);
+    const expenseDate = transaction.postedDate.split('T')[0];
+    const week = await findWeekForDate(db, budgetPeriod.id, expenseDate);
 
-  const queries: D1Query[] = [
-    db
-      .insert(schema.expenseEntries)
-      .values({
-        id: generateId(),
-        userId: user.id,
-        budgetPeriodId: budgetPeriod.id,
-        weeklyBudgetAllocationId: week?.id ?? null,
-        transactionId: transaction.id,
-        categoryId: transaction.categoryId ?? null,
-        amountCents: transaction.amountCents,
-        expenseDate,
-        description: transaction.descriptionRaw,
-        sourceType: 'statement_import',
-        merchantName: transaction.merchantName ?? null,
-        createdAt: nowISO(),
-        updatedAt: nowISO(),
-      })
-      .returning(),
-  ];
+    const queries: D1Query[] = [
+      db
+        .insert(schema.expenseEntries)
+        .values({
+          id: generateId(),
+          userId: user.id,
+          budgetPeriodId: budgetPeriod.id,
+          weeklyBudgetAllocationId: week?.id ?? null,
+          transactionId: transaction.id,
+          categoryId: transaction.categoryId ?? null,
+          amountCents: transaction.amountCents,
+          expenseDate,
+          description: transaction.descriptionRaw,
+          sourceType: 'statement_import',
+          merchantName: transaction.merchantName ?? null,
+          createdAt: nowISO(),
+          updatedAt: nowISO(),
+        })
+        .returning(),
+    ];
 
-  if (week) {
-    queries.push(buildWeekCacheUpdate(db, week.id, transaction.amountCents));
-  }
+    if (week) {
+      queries.push(buildWeekCacheUpdate(db, week.id, transaction.amountCents));
+    }
 
-  const results = await db.batch(queries as [D1Query, ...D1Query[]]);
-  const [expense] = results[0] as InferSelectModel<
-    typeof schema.expenseEntries
-  >[];
+    const results = await db.batch(queries as [D1Query, ...D1Query[]]);
+    const [expense] = results[0] as InferSelectModel<
+      typeof schema.expenseEntries
+    >[];
 
-  return c.json(expense, 201);
-});
+    return c.json(expense, 201);
+  },
+);
 
 statementsRouter.post('/transactions/:id/convert-to-income', async (c) => {
   const user = c.get('user');

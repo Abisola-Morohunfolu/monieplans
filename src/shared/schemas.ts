@@ -167,6 +167,10 @@ export const updateTransactionCategorySchema = z.object({
   categoryId: z.string().nullable(),
 });
 
+export const convertTransactionToExpenseSchema = z.object({
+  budgetId: z.string().min(1),
+});
+
 export type CreateBudgetInput = z.infer<typeof createBudgetSchema>;
 export type CreateExpenseInput = z.infer<typeof createExpenseSchema>;
 export type UpdateExpenseInput = z.infer<typeof updateExpenseSchema>;
