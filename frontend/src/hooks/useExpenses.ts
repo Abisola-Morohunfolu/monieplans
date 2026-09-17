@@ -34,8 +34,9 @@ export function useCreateExpense() {
   return useMutation({
     mutationFn: (data: CreateExpenseInput) => api.post('/api/expenses', data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['expenses'] })
-      queryClient.invalidateQueries({ queryKey: ['budgets'] })
+      queryClient.invalidateQueries({ queryKey: queryKeys.expenses.all })
+      queryClient.invalidateQueries({ queryKey: queryKeys.budgets.all })
+      queryClient.invalidateQueries({ queryKey: queryKeys.budgets.active })
     },
   })
 }
@@ -47,8 +48,9 @@ export function useUpdateExpense() {
     mutationFn: ({ id, data }: { id: string; data: Partial<CreateExpenseInput> }) =>
       api.patch(`/api/expenses/${id}`, data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['expenses'] })
-      queryClient.invalidateQueries({ queryKey: ['budgets'] })
+      queryClient.invalidateQueries({ queryKey: queryKeys.expenses.all })
+      queryClient.invalidateQueries({ queryKey: queryKeys.budgets.all })
+      queryClient.invalidateQueries({ queryKey: queryKeys.budgets.active })
     },
   })
 }
@@ -59,8 +61,9 @@ export function useDeleteExpense() {
   return useMutation({
     mutationFn: (expenseId: string) => api.delete(`/api/expenses/${expenseId}`),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['expenses'] })
-      queryClient.invalidateQueries({ queryKey: ['budgets'] })
+      queryClient.invalidateQueries({ queryKey: queryKeys.expenses.all })
+      queryClient.invalidateQueries({ queryKey: queryKeys.budgets.all })
+      queryClient.invalidateQueries({ queryKey: queryKeys.budgets.active })
     },
   })
 }

@@ -73,12 +73,12 @@ export function useConvertTransactionToExpense(_statementId: string) {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: ({ transactionId, budgetId }: { transactionId: string; budgetId: string }) =>
-      api.post(`/api/statements/transactions/${transactionId}/convert-to-expense`, { budgetId }),
+    mutationFn: (transactionId: string) =>
+      api.post(`/api/statements/transactions/${transactionId}/convert-to-expense`),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['statements'] })
-      queryClient.invalidateQueries({ queryKey: ['expenses'] })
-      queryClient.invalidateQueries({ queryKey: ['budgets'] })
+      queryClient.invalidateQueries({ queryKey: queryKeys.statements.all })
+      queryClient.invalidateQueries({ queryKey: queryKeys.expenses.all })
+      queryClient.invalidateQueries({ queryKey: queryKeys.budgets.all })
     },
   })
 }
@@ -90,8 +90,9 @@ export function useConvertTransactionToIncome(_statementId: string) {
     mutationFn: (transactionId: string) =>
       api.post(`/api/statements/transactions/${transactionId}/convert-to-income`),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['statements'] })
-      queryClient.invalidateQueries({ queryKey: ['income'] })
+      queryClient.invalidateQueries({ queryKey: queryKeys.statements.all })
+      queryClient.invalidateQueries({ queryKey: queryKeys.income.all })
+      queryClient.invalidateQueries({ queryKey: queryKeys.budgets.all })
     },
   })
 }
@@ -103,7 +104,7 @@ export function useUpdateTransactionCategory(_statementId: string) {
     mutationFn: ({ transactionId, categoryId }: { transactionId: string; categoryId: string | null }) =>
       api.patch(`/api/statements/transactions/${transactionId}`, { categoryId }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['statements'] })
+      queryClient.invalidateQueries({ queryKey: queryKeys.statements.all })
     },
   })
 }
@@ -112,14 +113,14 @@ export function useUploadStatement() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: ({ file, budgetPeriodId }: { file: File; budgetPeriodId?: string | null }) => {
+    mutationFn: ({ file, budgetPeriodId }: { file: File; budgetPeriodId: string }) => {
       const formData = new FormData()
       formData.append('file', file)
-      if (budgetPeriodId) formData.append('budgetPeriodId', budgetPeriodId)
+      formData.append('budgetPeriodId', budgetPeriodId)
       return api.post('/api/statements/upload', formData)
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [queryKeys.statements.all] })
+      queryClient.invalidateQueries({ queryKey: queryKeys.statements.all })
     },
   })
 }

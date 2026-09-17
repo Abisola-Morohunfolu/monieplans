@@ -53,6 +53,7 @@ export function useActivateBudget(budgetId: string) {
       queryClient.invalidateQueries({ queryKey: queryKeys.budgets.active })
       queryClient.invalidateQueries({ queryKey: queryKeys.budgets.allocations(budgetId) })
       queryClient.invalidateQueries({ queryKey: queryKeys.budgets.summary(budgetId) })
+      queryClient.invalidateQueries({ queryKey: queryKeys.fixedExpenses.items(budgetId) })
     },
   })
 }

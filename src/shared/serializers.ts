@@ -165,3 +165,41 @@ export function serializeFixedExpenseTemplate(t: FixedExpenseTemplateRow) {
     updatedAt: t.updatedAt,
   };
 }
+
+export interface FixedExpenseItemRow {
+  id: string;
+  budgetPeriodId: string;
+  fixedExpenseTemplateId: string | null;
+  name: string;
+  categoryId: string | null;
+  categoryName?: string | null;
+  amountCents: number;
+  dueDate: string | null;
+  originType: string;
+  inclusionStatus: string;
+  isMandatory: boolean;
+  isProtectedFromCutRecommendations: boolean;
+  notes: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export function serializeFixedExpenseItem(i: FixedExpenseItemRow) {
+  return {
+    id: i.id,
+    budgetPeriodId: i.budgetPeriodId,
+    fixedExpenseTemplateId: i.fixedExpenseTemplateId,
+    name: i.name,
+    categoryId: i.categoryId,
+    categoryName: i.categoryName ?? null,
+    amount: fromCents(i.amountCents),
+    dueDate: i.dueDate,
+    originType: i.originType,
+    inclusionStatus: i.inclusionStatus,
+    isMandatory: i.isMandatory,
+    isProtectedFromCutRecommendations: i.isProtectedFromCutRecommendations,
+    notes: i.notes,
+    createdAt: i.createdAt,
+    updatedAt: i.updatedAt,
+  };
+}

@@ -18,7 +18,7 @@ interface Env {
 interface StatementMessage {
   uploadId: string;
   userId: string;
-  budgetPeriodId: string | null;
+  budgetPeriodId: string;
   fileName: string;
   storagePath: string;
 }
@@ -47,6 +47,18 @@ export async function processStatementMessages(
   for (const msg of batch.messages) {
     const { uploadId, userId, budgetPeriodId, fileName, storagePath } =
       msg.body;
+
+    if (!budgetPeriodId) {
+      await db
+        .update(schema.statementUploads)
+        .set({
+          uploadStatus: 'failed',
+          parseErrorSummary: 'No budget period attached',
+        })
+        .where(eq(schema.statementUploads.id, uploadId));
+      msg.ack();
+      continue;
+    }
 
     try {
       await db

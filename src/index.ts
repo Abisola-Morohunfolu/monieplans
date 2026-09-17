@@ -118,7 +118,7 @@ async function queue(batch: MessageBatch<unknown>, env: Env): Promise<void> {
         batch as unknown as MessageBatch<{
           uploadId: string;
           userId: string;
-          budgetPeriodId: string | null;
+          budgetPeriodId: string;
           fileName: string;
           storagePath: string;
         }>,

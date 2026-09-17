@@ -65,6 +65,8 @@ export interface BudgetSummary extends Budget {
   remaining: number
   categoryTotals: CategoryTotal[]
   weeklyAllocations: WeeklyAllocation[]
+  fixedExpensesTotal?: number
+  fixedExpenseItems?: FixedExpenseItem[]
 }
 
 export interface Expense {
@@ -134,6 +136,24 @@ export interface FixedExpenseTemplate {
   categoryName?: string | null
   frequency: string
   dueDay?: number
+  createdAt: string
+  updatedAt?: string
+}
+
+export interface FixedExpenseItem {
+  id: string
+  budgetPeriodId: string
+  fixedExpenseTemplateId: string | null
+  name: string
+  categoryId: string | null
+  categoryName?: string | null
+  amount: number
+  dueDate: string | null
+  originType: string
+  inclusionStatus: string
+  isMandatory: boolean
+  isProtectedFromCutRecommendations: boolean
+  notes: string | null
   createdAt: string
   updatedAt?: string
 }

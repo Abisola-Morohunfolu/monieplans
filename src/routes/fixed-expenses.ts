@@ -10,7 +10,11 @@ import {
   paginationQuerySchema,
 } from '../shared/schemas';
 import { validateJson, validateQuery } from '../shared/validate';
-import { assertCategoryVisible, getBudgetPeriodOrThrow } from './helpers';
+import {
+  assertCategoryVisible,
+  getBudgetPeriodOrThrow,
+  generateFixedExpenseItemsForPeriod,
+} from './helpers';
 import { paginated, resolveLimitOffset } from '../shared/pagination';
 
 export const fixedExpensesRouter = new Hono();
@@ -235,48 +239,11 @@ fixedExpensesRouter.post('/generate-items/:budgetPeriodId', async (c) => {
     budgetPeriodId,
   );
 
-  const activeTemplates = await db
-    .select()
-    .from(schema.fixedExpenseTemplates)
-    .where(
-      and(
-        eq(schema.fixedExpenseTemplates.userId, user.id),
-        eq(schema.fixedExpenseTemplates.isActive, true),
-      ),
-    );
+  const items = await generateFixedExpenseItemsForPeriod(
+    db,
+    user.id,
+    budgetPeriod,
+  );
 
-  if (activeTemplates.length === 0) return c.json([]);
-
-  const itemsToInsert = activeTemplates.map((t) => {
-    let dueDate: string | null = null;
-    if (t.defaultDueDay && budgetPeriod.periodStartDate) {
-      const d = new Date(budgetPeriod.periodStartDate);
-      d.setDate(t.defaultDueDay);
-      dueDate = d.toISOString().split('T')[0];
-    }
-
-    return {
-      id: generateId(),
-      userId: user.id,
-      budgetPeriodId,
-      fixedExpenseTemplateId: t.id,
-      name: t.name,
-      categoryId: t.categoryId,
-      amountCents: t.amountCents,
-      dueDate,
-      originType: 'recurring_template',
-      inclusionStatus: 'included',
-      isMandatory: t.isMandatory,
-      isProtectedFromCutRecommendations: t.isProtectedFromCutRecommendations,
-      notes: t.notes,
-      createdAt: nowISO(),
-      updatedAt: nowISO(),
-    };
-  });
-
-  const items = await db
-    .insert(schema.fixedExpenseItems)
-    .values(itemsToInsert)
-    .returning();
   return c.json(items, 201);
 });

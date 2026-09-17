@@ -1,8 +1,8 @@
 import { createFileRoute, Link } from '@tanstack/react-router'
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { FileText, Download, Upload } from 'lucide-react'
 import { useStatements, useUploadStatement } from '../../../hooks/useStatements'
-import { useBudgets } from '../../../hooks/useBudgets'
+import { useActiveBudget, useBudgets } from '../../../hooks/useBudgets'
 import { usePagination, PAGE_SIZE } from '../../../hooks/usePagination'
 import { EmptyState } from '../../../components/ui/EmptyState'
 import { Pagination } from '../../../components/ui/Pagination'
@@ -25,9 +25,16 @@ function StatementsPage() {
   const { data: statementsData, isLoading } = useStatements({ limit: PAGE_SIZE, offset })
   const uploadStatement = useUploadStatement()
   const { data: budgetsData } = useBudgets({ limit: 100 })
+  const { data: activeBudget } = useActiveBudget()
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [uploading, setUploading] = useState(false)
   const [budgetPeriodId, setBudgetPeriodId] = useState('')
+
+  useEffect(() => {
+    if (!budgetPeriodId && activeBudget?.id) {
+      setBudgetPeriodId(activeBudget.id)
+    }
+  }, [activeBudget?.id, budgetPeriodId])
 
   const pagination = usePagination({
     total: statementsData?.pagination.total ?? 0,
@@ -39,10 +46,10 @@ function StatementsPage() {
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
-    if (!file) return
+    if (!file || !budgetPeriodId) return
     setUploading(true)
     try {
-      await uploadStatement.mutateAsync({ file, budgetPeriodId: budgetPeriodId || null })
+      await uploadStatement.mutateAsync({ file, budgetPeriodId })
     } catch {
       // handle error
     } finally {
@@ -82,7 +89,7 @@ function StatementsPage() {
             onChange={(e) => setBudgetPeriodId(e.target.value)}
             className="py-2.5 px-3 rounded-xl border border-text-primary/12 bg-bg-lightest/60 text-sm outline-none focus:border-text-primary/20"
           >
-            <option value="">No budget period</option>
+            <option value="">Select a budget period</option>
             {budgetsData?.data.map((b) => (
               <option key={b.id} value={b.id}>
                 {b.name} ({b.periodStartDate})
@@ -92,7 +99,7 @@ function StatementsPage() {
           <button
             className="btn-primary"
             onClick={() => fileInputRef.current?.click()}
-            disabled={uploading}
+            disabled={uploading || !budgetPeriodId}
           >
             {uploading ? (
               <div className="w-4 h-4 border-2 border-bg-base border-t-transparent rounded-full animate-spin" />

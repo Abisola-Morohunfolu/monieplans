@@ -25,6 +25,8 @@ export const queryKeys = {
     all: ['fixed-expenses'] as const,
     templates: ['fixed-expenses', 'templates'] as const,
     templateDetail: (id: string) => ['fixed-expenses', 'templates', id] as const,
+    items: (budgetPeriodId: string) =>
+      ['fixed-expenses', 'items', budgetPeriodId] as const,
   },
   statements: {
     all: ['statements'] as const,
