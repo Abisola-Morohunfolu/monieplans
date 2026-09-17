@@ -4,7 +4,7 @@ import type { BatchItem } from 'drizzle-orm/batch';
 import type { InferSelectModel } from 'drizzle-orm';
 import type { DrizzleD1Database } from 'drizzle-orm/d1';
 import * as schema from '../database/schema';
-import { nowISO } from '../shared/utils';
+import { nowISO, generateId } from '../shared/utils';
 
 export type D1Query = BatchItem<'sqlite'>;
 export type Db = DrizzleD1Database<typeof schema>;
@@ -130,4 +130,86 @@ export function buildWeekCacheUpdate(
       updatedAt: nowISO(),
     })
     .where(eq(schema.weeklyBudgetAllocations.id, weekId));
+}
+
+export async function generateFixedExpenseItemsForPeriod(
+  db: Db,
+  userId: string,
+  budgetPeriod: { id: string; periodStartDate: string },
+): Promise<InferSelectModel<typeof schema.fixedExpenseItems>[]> {
+  const activeTemplates = await db
+    .select()
+    .from(schema.fixedExpenseTemplates)
+    .where(
+      and(
+        eq(schema.fixedExpenseTemplates.userId, userId),
+        eq(schema.fixedExpenseTemplates.isActive, true),
+      ),
+    );
+
+  if (activeTemplates.length === 0) return [];
+
+  const existingItems = await db
+    .select({
+      fixedExpenseTemplateId: schema.fixedExpenseItems.fixedExpenseTemplateId,
+    })
+    .from(schema.fixedExpenseItems)
+    .where(eq(schema.fixedExpenseItems.budgetPeriodId, budgetPeriod.id));
+
+  const existingTemplateIds = new Set(
+    existingItems
+      .map((e) => e.fixedExpenseTemplateId)
+      .filter((id): id is string => id != null),
+  );
+
+  const itemsToInsert = activeTemplates
+    .filter((t) => !existingTemplateIds.has(t.id))
+    .map((t) => {
+      let dueDate: string | null = null;
+      if (t.defaultDueDay && budgetPeriod.periodStartDate) {
+        const d = new Date(budgetPeriod.periodStartDate);
+        d.setDate(t.defaultDueDay);
+        dueDate = d.toISOString().split('T')[0];
+      }
+
+      return {
+        id: generateId(),
+        userId,
+        budgetPeriodId: budgetPeriod.id,
+        fixedExpenseTemplateId: t.id,
+        name: t.name,
+        categoryId: t.categoryId,
+        amountCents: t.amountCents,
+        dueDate,
+        originType: 'recurring_template',
+        inclusionStatus: 'included',
+        isMandatory: t.isMandatory,
+        isProtectedFromCutRecommendations: t.isProtectedFromCutRecommendations,
+        notes: t.notes,
+        createdAt: nowISO(),
+        updatedAt: nowISO(),
+      };
+    });
+
+  if (itemsToInsert.length === 0) return [];
+
+  return db.insert(schema.fixedExpenseItems).values(itemsToInsert).returning();
+}
+
+export async function sumFixedExpenseItemsCents(
+  db: Db,
+  budgetPeriodId: string,
+): Promise<number> {
+  const [row] = await db
+    .select({
+      total: sql<number>`coalesce(sum(${schema.fixedExpenseItems.amountCents}), 0)`,
+    })
+    .from(schema.fixedExpenseItems)
+    .where(
+      and(
+        eq(schema.fixedExpenseItems.budgetPeriodId, budgetPeriodId),
+        eq(schema.fixedExpenseItems.inclusionStatus, 'included'),
+      ),
+    );
+  return Number(row?.total ?? 0);
 }

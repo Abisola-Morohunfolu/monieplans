@@ -36,6 +36,7 @@ export function useCreateFixedExpenseTemplate() {
       api.post('/api/fixed-expenses/templates', data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.fixedExpenses.templates })
+      queryClient.invalidateQueries({ queryKey: queryKeys.budgets.all })
     },
   })
 }
@@ -48,6 +49,7 @@ export function useUpdateFixedExpenseTemplate() {
       api.patch(`/api/fixed-expenses/templates/${id}`, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.fixedExpenses.templates })
+      queryClient.invalidateQueries({ queryKey: queryKeys.budgets.all })
     },
   })
 }
@@ -60,6 +62,20 @@ export function useDeleteFixedExpenseTemplate() {
       api.delete(`/api/fixed-expenses/templates/${templateId}`),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.fixedExpenses.templates })
+      queryClient.invalidateQueries({ queryKey: queryKeys.budgets.all })
+    },
+  })
+}
+
+export function useGenerateFixedExpenseItems(budgetPeriodId: string) {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: () =>
+      api.post(`/api/fixed-expenses/generate-items/${budgetPeriodId}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.budgets.summary(budgetPeriodId) })
+      queryClient.invalidateQueries({ queryKey: queryKeys.fixedExpenses.items(budgetPeriodId) })
     },
   })
 }
