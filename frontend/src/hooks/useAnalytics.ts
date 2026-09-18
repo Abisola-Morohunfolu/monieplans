@@ -21,6 +21,7 @@ export function useUpdateRecommendationStatus() {
   return useMutation({
     mutationFn: ({ id, status }: { id: string; status: 'dismissed' | 'accepted' }) =>
       api.patch(`/api/analytics/recommendations/${id}/status`, { status }),
+    meta: { successMessage: 'Recommendation updated' },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.analytics.recommendations })
     },
@@ -33,6 +34,7 @@ export function useGenerateInsights() {
   return useMutation({
     mutationFn: (budgetPeriodId: string) =>
       api.post('/api/analytics/generate-insights', { budgetPeriodId }),
+    meta: { successMessage: 'Insights generated' },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.analytics.all })
     },

@@ -1,5 +1,6 @@
 import { createFileRoute, Link } from '@tanstack/react-router'
 import { useState, type FormEvent } from 'react'
+import { toast } from 'sonner'
 import { requestPasswordReset } from '../lib/auth'
 import { AuthCard } from '../components/auth/AuthCard'
 import { Button } from '../components/ui/Button'
@@ -33,12 +34,13 @@ function ForgotPasswordPage() {
         redirectTo: `${window.location.origin}/login`,
       })
       if (result.error) {
-        setError(result.error.message || 'Something went wrong.')
+        toast.error(result.error.message || 'Something went wrong.')
       } else {
+        toast.success('Reset link sent.')
         setSent(true)
       }
     } catch {
-      setError('An unexpected error occurred.')
+      toast.error('An unexpected error occurred.')
     } finally {
       setLoading(false)
     }

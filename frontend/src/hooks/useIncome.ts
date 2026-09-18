@@ -30,6 +30,7 @@ export function useCreateIncome() {
 
   return useMutation({
     mutationFn: (data: CreateIncomeInput) => api.post('/api/income', data),
+    meta: { successMessage: 'Income added' },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['income'] })
       queryClient.invalidateQueries({ queryKey: ['budgets'] })
@@ -43,6 +44,7 @@ export function useUpdateIncome() {
   return useMutation({
     mutationFn: ({ id, data }: { id: string; data: Partial<CreateIncomeInput> }) =>
       api.patch(`/api/income/${id}`, data),
+    meta: { successMessage: 'Income updated' },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['income'] })
       queryClient.invalidateQueries({ queryKey: ['budgets'] })
@@ -55,6 +57,7 @@ export function useDeleteIncome() {
 
   return useMutation({
     mutationFn: (id: string) => api.delete(`/api/income/${id}`),
+    meta: { successMessage: 'Income deleted' },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['income'] })
       queryClient.invalidateQueries({ queryKey: ['budgets'] })
