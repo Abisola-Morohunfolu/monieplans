@@ -24,9 +24,6 @@ import { Route as AuthenticatedExpensesIndexRouteImport } from './routes/_authen
 import { Route as AuthenticatedFixedExpensesIndexRouteImport } from './routes/_authenticated/fixed-expenses/index'
 import { Route as AuthenticatedGoalsIndexRouteImport } from './routes/_authenticated/goals/index'
 import { Route as AuthenticatedProfileIndexRouteImport } from './routes/_authenticated/profile/index'
-import { Route as AuthenticatedStatementsIndexRouteImport } from './routes/_authenticated/statements/index'
-import { Route as AuthenticatedStatementsStatementIdRouteImport } from './routes/_authenticated/statements/$statementId'
-import { Route as AuthenticatedTransactionsIndexRouteImport } from './routes/_authenticated/transactions/index'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -107,24 +104,6 @@ const AuthenticatedProfileIndexRoute =
     path: '/profile/',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
-const AuthenticatedStatementsIndexRoute =
-  AuthenticatedStatementsIndexRouteImport.update({
-    id: '/statements/',
-    path: '/statements/',
-    getParentRoute: () => AuthenticatedRoute,
-  } as any)
-const AuthenticatedStatementsStatementIdRoute =
-  AuthenticatedStatementsStatementIdRouteImport.update({
-    id: '/statements/$statementId',
-    path: '/statements/$statementId',
-    getParentRoute: () => AuthenticatedRoute,
-  } as any)
-const AuthenticatedTransactionsIndexRoute =
-  AuthenticatedTransactionsIndexRouteImport.update({
-    id: '/transactions/',
-    path: '/transactions/',
-    getParentRoute: () => AuthenticatedRoute,
-  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -136,14 +115,11 @@ export interface FileRoutesByFullPath {
   '/verify-email': typeof VerifyEmailRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/budgets/$budgetId': typeof AuthenticatedBudgetsBudgetIdRoute
-  '/statements/$statementId': typeof AuthenticatedStatementsStatementIdRoute
   '/budgets/': typeof AuthenticatedBudgetsIndexRoute
   '/expenses/': typeof AuthenticatedExpensesIndexRoute
   '/fixed-expenses/': typeof AuthenticatedFixedExpensesIndexRoute
   '/goals/': typeof AuthenticatedGoalsIndexRoute
   '/profile/': typeof AuthenticatedProfileIndexRoute
-  '/statements/': typeof AuthenticatedStatementsIndexRoute
-  '/transactions/': typeof AuthenticatedTransactionsIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -155,14 +131,11 @@ export interface FileRoutesByTo {
   '/verify-email': typeof VerifyEmailRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/budgets/$budgetId': typeof AuthenticatedBudgetsBudgetIdRoute
-  '/statements/$statementId': typeof AuthenticatedStatementsStatementIdRoute
   '/budgets': typeof AuthenticatedBudgetsIndexRoute
   '/expenses': typeof AuthenticatedExpensesIndexRoute
   '/fixed-expenses': typeof AuthenticatedFixedExpensesIndexRoute
   '/goals': typeof AuthenticatedGoalsIndexRoute
   '/profile': typeof AuthenticatedProfileIndexRoute
-  '/statements': typeof AuthenticatedStatementsIndexRoute
-  '/transactions': typeof AuthenticatedTransactionsIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -176,14 +149,11 @@ export interface FileRoutesById {
   '/verify-email': typeof VerifyEmailRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/budgets/$budgetId': typeof AuthenticatedBudgetsBudgetIdRoute
-  '/_authenticated/statements/$statementId': typeof AuthenticatedStatementsStatementIdRoute
   '/_authenticated/budgets/': typeof AuthenticatedBudgetsIndexRoute
   '/_authenticated/expenses/': typeof AuthenticatedExpensesIndexRoute
   '/_authenticated/fixed-expenses/': typeof AuthenticatedFixedExpensesIndexRoute
   '/_authenticated/goals/': typeof AuthenticatedGoalsIndexRoute
   '/_authenticated/profile/': typeof AuthenticatedProfileIndexRoute
-  '/_authenticated/statements/': typeof AuthenticatedStatementsIndexRoute
-  '/_authenticated/transactions/': typeof AuthenticatedTransactionsIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -197,14 +167,11 @@ export interface FileRouteTypes {
     | '/verify-email'
     | '/dashboard'
     | '/budgets/$budgetId'
-    | '/statements/$statementId'
     | '/budgets/'
     | '/expenses/'
     | '/fixed-expenses/'
     | '/goals/'
     | '/profile/'
-    | '/statements/'
-    | '/transactions/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -216,14 +183,11 @@ export interface FileRouteTypes {
     | '/verify-email'
     | '/dashboard'
     | '/budgets/$budgetId'
-    | '/statements/$statementId'
     | '/budgets'
     | '/expenses'
     | '/fixed-expenses'
     | '/goals'
     | '/profile'
-    | '/statements'
-    | '/transactions'
   id:
     | '__root__'
     | '/'
@@ -236,14 +200,11 @@ export interface FileRouteTypes {
     | '/verify-email'
     | '/_authenticated/dashboard'
     | '/_authenticated/budgets/$budgetId'
-    | '/_authenticated/statements/$statementId'
     | '/_authenticated/budgets/'
     | '/_authenticated/expenses/'
     | '/_authenticated/fixed-expenses/'
     | '/_authenticated/goals/'
     | '/_authenticated/profile/'
-    | '/_authenticated/statements/'
-    | '/_authenticated/transactions/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -364,55 +325,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedProfileIndexRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
-    '/_authenticated/statements/': {
-      id: '/_authenticated/statements/'
-      path: '/statements'
-      fullPath: '/statements/'
-      preLoaderRoute: typeof AuthenticatedStatementsIndexRouteImport
-      parentRoute: typeof AuthenticatedRoute
-    }
-    '/_authenticated/statements/$statementId': {
-      id: '/_authenticated/statements/$statementId'
-      path: '/statements/$statementId'
-      fullPath: '/statements/$statementId'
-      preLoaderRoute: typeof AuthenticatedStatementsStatementIdRouteImport
-      parentRoute: typeof AuthenticatedRoute
-    }
-    '/_authenticated/transactions/': {
-      id: '/_authenticated/transactions/'
-      path: '/transactions'
-      fullPath: '/transactions/'
-      preLoaderRoute: typeof AuthenticatedTransactionsIndexRouteImport
-      parentRoute: typeof AuthenticatedRoute
-    }
   }
 }
 
 interface AuthenticatedRouteChildren {
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedBudgetsBudgetIdRoute: typeof AuthenticatedBudgetsBudgetIdRoute
-  AuthenticatedStatementsStatementIdRoute: typeof AuthenticatedStatementsStatementIdRoute
   AuthenticatedBudgetsIndexRoute: typeof AuthenticatedBudgetsIndexRoute
   AuthenticatedExpensesIndexRoute: typeof AuthenticatedExpensesIndexRoute
   AuthenticatedFixedExpensesIndexRoute: typeof AuthenticatedFixedExpensesIndexRoute
   AuthenticatedGoalsIndexRoute: typeof AuthenticatedGoalsIndexRoute
   AuthenticatedProfileIndexRoute: typeof AuthenticatedProfileIndexRoute
-  AuthenticatedStatementsIndexRoute: typeof AuthenticatedStatementsIndexRoute
-  AuthenticatedTransactionsIndexRoute: typeof AuthenticatedTransactionsIndexRoute
 }
 
 const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedBudgetsBudgetIdRoute: AuthenticatedBudgetsBudgetIdRoute,
-  AuthenticatedStatementsStatementIdRoute:
-    AuthenticatedStatementsStatementIdRoute,
   AuthenticatedBudgetsIndexRoute: AuthenticatedBudgetsIndexRoute,
   AuthenticatedExpensesIndexRoute: AuthenticatedExpensesIndexRoute,
   AuthenticatedFixedExpensesIndexRoute: AuthenticatedFixedExpensesIndexRoute,
   AuthenticatedGoalsIndexRoute: AuthenticatedGoalsIndexRoute,
   AuthenticatedProfileIndexRoute: AuthenticatedProfileIndexRoute,
-  AuthenticatedStatementsIndexRoute: AuthenticatedStatementsIndexRoute,
-  AuthenticatedTransactionsIndexRoute: AuthenticatedTransactionsIndexRoute,
 }
 
 const AuthenticatedRouteWithChildren = AuthenticatedRoute._addFileChildren(

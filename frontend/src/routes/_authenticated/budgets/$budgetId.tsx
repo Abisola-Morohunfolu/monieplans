@@ -1,19 +1,23 @@
 import { createFileRoute, Link } from '@tanstack/react-router'
 import { useState } from 'react'
-import { Wallet, Lock, CheckCircle, ArrowLeft, CalendarClock, DollarSign, Target, TrendingUp, Receipt, Zap, Plus } from 'lucide-react'
+import { Wallet, Lock, CheckCircle, ArrowLeft, CalendarClock, DollarSign, Target, TrendingUp, Receipt, Zap, Plus, ArrowUpRight, Pencil, Trash2 } from 'lucide-react'
 import { useBudget, useBudgetSummary, useActivateBudget, useLockBudget } from '../../../hooks/useBudget'
 import { useExpenses } from '../../../hooks/useExpenses'
+import { useIncome, useDeleteIncome } from '../../../hooks/useIncome'
 import { useGenerateFixedExpenseItems } from '../../../hooks/useFixedExpenses'
 import { usePreferredCurrency } from '../../../hooks/useCurrency'
 import { formatCurrency } from '../../../lib/currency'
 import { ProgressBar } from '../../../components/ui/ProgressBar'
 import { EmptyState } from '../../../components/ui/EmptyState'
+import { IncomeFormModal } from '../../../components/income/IncomeFormModal'
+import { StatementImportTab } from '../../../components/budgets/StatementImportTab'
+import type { IncomeEntry } from '../../../types'
 
 export const Route = createFileRoute('/_authenticated/budgets/$budgetId')({
   component: BudgetDetailsPage,
 })
 
-type Tab = 'overview' | 'fixed-expenses' | 'expenses'
+type Tab = 'overview' | 'fixed-expenses' | 'expenses' | 'income' | 'import'
 
 function BudgetDetailsPage() {
   const { budgetId } = Route.useParams()
@@ -24,7 +28,11 @@ function BudgetDetailsPage() {
   const currency = usePreferredCurrency()
   const generateItems = useGenerateFixedExpenseItems(budgetId)
   const { data: expensesData } = useExpenses({ budgetPeriodId: budgetId, limit: 100 })
+  const { data: incomeData } = useIncome({ budgetPeriodId: budgetId, limit: 100 })
+  const deleteIncome = useDeleteIncome()
   const [tab, setTab] = useState<Tab>('overview')
+  const [incomeModalOpen, setIncomeModalOpen] = useState(false)
+  const [editingIncome, setEditingIncome] = useState<IncomeEntry | null>(null)
 
   const statusBadge = (status: string) => {
     switch (status) {
@@ -63,11 +71,14 @@ function BudgetDetailsPage() {
   const fixedExpenseItems = summary?.fixedExpenseItems ?? []
   const fixedExpensesTotal = summary?.fixedExpensesTotal ?? 0
   const expenses = expensesData?.data ?? []
+  const incomeEntries = incomeData?.data ?? []
 
   const tabs: { id: Tab; label: string; icon: typeof Wallet }[] = [
     { id: 'overview', label: 'Overview', icon: Wallet },
     { id: 'fixed-expenses', label: 'Fixed Expenses', icon: CalendarClock },
     { id: 'expenses', label: 'Expenses', icon: Receipt },
+    { id: 'income', label: 'Income', icon: TrendingUp },
+    { id: 'import', label: 'Import', icon: Receipt },
   ]
 
   return (
@@ -315,6 +326,92 @@ function BudgetDetailsPage() {
           )}
         </div>
       )}
+
+      {tab === 'income' && (
+        <div className="card overflow-hidden p-0">
+          <div className="flex items-center justify-between px-6 py-4 border-b border-text-primary/6">
+            <div>
+              <h3 className="font-heading text-xl font-semibold text-text-primary">Income</h3>
+              <p className="text-sm text-text-tertiary">
+                Total: {formatCurrency(summary?.incomeTotal ?? 0, budget.currency ?? currency)}
+              </p>
+            </div>
+            <button
+              className="btn-primary"
+              onClick={() => {
+                setEditingIncome(null)
+                setIncomeModalOpen(true)
+              }}
+            >
+              <Plus className="w-5 h-5" />
+              Add income
+            </button>
+          </div>
+          {incomeEntries.length === 0 ? (
+            <div className="py-12">
+              <EmptyState
+                icon={ArrowUpRight}
+                title="No income yet"
+                description="Add income for this budget period, or import it from a bank statement via the Import tab."
+              />
+            </div>
+          ) : (
+            <div className="divide-y divide-text-primary/6">
+              {incomeEntries.map((entry) => (
+                <div key={entry.id} className="flex items-center justify-between p-4">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-10 h-10 rounded-full bg-sage/20 flex items-center justify-center text-forest shrink-0">
+                      <ArrowUpRight className="w-5 h-5" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="font-medium text-sm text-text-primary truncate">
+                        {entry.description || 'Income'}
+                      </p>
+                      <p className="text-xs text-text-tertiary">
+                        {new Date(entry.incomeDate).toLocaleDateString()}
+                        {entry.categoryName ? ` · ${entry.categoryName}` : ''}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3 shrink-0">
+                    <p className="font-medium text-sm text-forest">
+                      +{formatCurrency(Number(entry.amount), budget.currency ?? currency)}
+                    </p>
+                    <button
+                      onClick={() => {
+                        setEditingIncome(entry)
+                        setIncomeModalOpen(true)
+                      }}
+                      className="p-1.5 rounded-lg text-text-tertiary hover:text-forest hover:bg-sage/10 transition-colors"
+                      aria-label="Edit income"
+                    >
+                      <Pencil className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => {
+                        if (window.confirm('Delete this income entry?')) deleteIncome.mutate(entry.id)
+                      }}
+                      className="p-1.5 rounded-lg text-text-tertiary hover:text-rust hover:bg-rust/10 transition-colors"
+                      aria-label="Delete income"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {tab === 'import' && <StatementImportTab budgetPeriodId={budgetId} />}
+
+      <IncomeFormModal
+        open={incomeModalOpen}
+        onClose={() => setIncomeModalOpen(false)}
+        budgetPeriodId={budgetId}
+        income={editingIncome}
+      />
     </div>
   )
 }

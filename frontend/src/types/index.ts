@@ -161,6 +161,7 @@ export interface FixedExpenseItem {
 export interface StatementUpload {
   id: string
   fileName: string
+  budgetPeriodId?: string | null
   uploadStatus: string
   statementPeriodStart?: string | null
   statementPeriodEnd?: string | null
@@ -306,6 +307,7 @@ export interface CreateFixedExpenseInput {
 export interface CreateIncomeInput {
   amount: number
   incomeDate: string
+  budgetPeriodId?: string
   categoryId?: string
   description?: string
 }

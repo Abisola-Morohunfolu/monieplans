@@ -8,24 +8,11 @@ async function fetchStatements(params?: { limit?: number; offset?: number }): Pr
   return data
 }
 
-async function fetchStatement(id: string): Promise<StatementUpload> {
-  const { data } = await api.get(`/api/statements/${id}`)
-  return data
-}
-
 async function fetchStatementTransactions(
   id: string,
   params?: { limit?: number; offset?: number },
 ): Promise<Paginated<StatementTransaction>> {
   const { data } = await api.get(`/api/statements/${id}/transactions`, { params })
-  return data
-}
-
-async function fetchAllTransactions(params?: {
-  limit?: number
-  offset?: number
-}): Promise<Paginated<StatementTransaction>> {
-  const { data } = await api.get('/api/statements/transactions', { params })
   return data
 }
 
@@ -43,14 +30,6 @@ export function useStatements(params?: { limit?: number; offset?: number }) {
   })
 }
 
-export function useStatement(id: string) {
-  return useQuery({
-    queryKey: queryKeys.statements.detail(id),
-    queryFn: () => fetchStatement(id),
-    enabled: !!id,
-  })
-}
-
 export function useStatementTransactions(
   id: string,
   params?: { limit?: number; offset?: number },
@@ -62,14 +41,7 @@ export function useStatementTransactions(
   })
 }
 
-export function useAllTransactions(params?: { limit?: number; offset?: number }) {
-  return useQuery({
-    queryKey: queryKeys.statements.allTransactions(params),
-    queryFn: () => fetchAllTransactions(params),
-  })
-}
-
-export function useConvertTransactionToExpense(_statementId: string) {
+export function useConvertTransactionToExpense() {
   const queryClient = useQueryClient()
 
   return useMutation({
@@ -83,7 +55,7 @@ export function useConvertTransactionToExpense(_statementId: string) {
   })
 }
 
-export function useConvertTransactionToIncome(_statementId: string) {
+export function useConvertTransactionToIncome() {
   const queryClient = useQueryClient()
 
   return useMutation({
@@ -97,7 +69,7 @@ export function useConvertTransactionToIncome(_statementId: string) {
   })
 }
 
-export function useUpdateTransactionCategory(_statementId: string) {
+export function useUpdateTransactionCategory() {
   const queryClient = useQueryClient()
 
   return useMutation({

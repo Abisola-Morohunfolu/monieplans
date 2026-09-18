@@ -1,15 +1,13 @@
 import { Link, Outlet, useRouterState } from '@tanstack/react-router'
-import { LayoutDashboard, Wallet, Receipt, CalendarClock, Target, FileText, ArrowLeftRight, Settings, LogOut } from 'lucide-react'
+import { LayoutDashboard, Wallet, Receipt, CalendarClock, Target, Settings, LogOut } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
 
 const navItems = [
   { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { to: '/budgets', label: 'Budgets', icon: Wallet },
   { to: '/expenses', label: 'Expenses', icon: Receipt },
-  { to: '/transactions', label: 'Transactions', icon: ArrowLeftRight },
   { to: '/fixed-expenses', label: 'Fixed Expenses', icon: CalendarClock },
   { to: '/goals', label: 'Goals', icon: Target },
-  { to: '/statements', label: 'Statements', icon: FileText },
   { to: '/profile', label: 'Settings', icon: Settings },
 ]
 
