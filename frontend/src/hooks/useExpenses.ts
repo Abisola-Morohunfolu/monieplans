@@ -33,6 +33,7 @@ export function useCreateExpense() {
 
   return useMutation({
     mutationFn: (data: CreateExpenseInput) => api.post('/api/expenses', data),
+    meta: { successMessage: 'Expense added' },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.expenses.all })
       queryClient.invalidateQueries({ queryKey: queryKeys.budgets.all })
@@ -47,6 +48,7 @@ export function useUpdateExpense() {
   return useMutation({
     mutationFn: ({ id, data }: { id: string; data: Partial<CreateExpenseInput> }) =>
       api.patch(`/api/expenses/${id}`, data),
+    meta: { successMessage: 'Expense updated' },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.expenses.all })
       queryClient.invalidateQueries({ queryKey: queryKeys.budgets.all })
@@ -60,6 +62,7 @@ export function useDeleteExpense() {
 
   return useMutation({
     mutationFn: (expenseId: string) => api.delete(`/api/expenses/${expenseId}`),
+    meta: { successMessage: 'Expense deleted' },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.expenses.all })
       queryClient.invalidateQueries({ queryKey: queryKeys.budgets.all })

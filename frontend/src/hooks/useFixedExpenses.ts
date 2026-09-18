@@ -34,6 +34,7 @@ export function useCreateFixedExpenseTemplate() {
   return useMutation({
     mutationFn: (data: CreateFixedExpenseInput) =>
       api.post('/api/fixed-expenses/templates', data),
+    meta: { successMessage: 'Fixed expense saved' },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.fixedExpenses.templates })
       queryClient.invalidateQueries({ queryKey: queryKeys.budgets.all })
@@ -47,6 +48,7 @@ export function useUpdateFixedExpenseTemplate() {
   return useMutation({
     mutationFn: ({ id, data }: { id: string; data: Partial<CreateFixedExpenseInput> }) =>
       api.patch(`/api/fixed-expenses/templates/${id}`, data),
+    meta: { successMessage: 'Fixed expense updated' },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.fixedExpenses.templates })
       queryClient.invalidateQueries({ queryKey: queryKeys.budgets.all })
@@ -60,6 +62,7 @@ export function useDeleteFixedExpenseTemplate() {
   return useMutation({
     mutationFn: (templateId: string) =>
       api.delete(`/api/fixed-expenses/templates/${templateId}`),
+    meta: { successMessage: 'Fixed expense deleted' },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.fixedExpenses.templates })
       queryClient.invalidateQueries({ queryKey: queryKeys.budgets.all })
@@ -73,6 +76,7 @@ export function useGenerateFixedExpenseItems(budgetPeriodId: string) {
   return useMutation({
     mutationFn: () =>
       api.post(`/api/fixed-expenses/generate-items/${budgetPeriodId}`),
+    meta: { successMessage: 'Fixed expenses generated' },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.budgets.summary(budgetPeriodId) })
       queryClient.invalidateQueries({ queryKey: queryKeys.fixedExpenses.items(budgetPeriodId) })

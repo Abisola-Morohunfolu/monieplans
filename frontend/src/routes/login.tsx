@@ -1,5 +1,6 @@
 import { createFileRoute, Link, useNavigate, useSearch, Navigate } from '@tanstack/react-router'
 import { useState, type FormEvent } from 'react'
+import { toast } from 'sonner'
 import { useAuth } from '../hooks/useAuth'
 import { AuthCard } from '../components/auth/AuthCard'
 import { OAuthButtons } from '../components/auth/OAuthButtons'
@@ -71,13 +72,14 @@ function LoginPage() {
     try {
       const result = await signIn.email({ email, password })
       if (result.error) {
-        setError(result.error.message || 'Login failed')
+        toast.error(result.error.message || 'Login failed')
       } else {
+        toast.success('Welcome back!')
         await refreshSession()
         navigate({ to: redirect || '/dashboard' })
       }
     } catch {
-      setError('An unexpected error occurred.')
+      toast.error('An unexpected error occurred.')
     } finally {
       setLoading(false)
     }

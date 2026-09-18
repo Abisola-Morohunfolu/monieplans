@@ -1,5 +1,6 @@
 import { createFileRoute, Link, Navigate } from '@tanstack/react-router'
 import { useState, type FormEvent } from 'react'
+import { toast } from 'sonner'
 import { useAuth } from '../hooks/useAuth'
 import { AuthCard } from '../components/auth/AuthCard'
 import { OAuthButtons } from '../components/auth/OAuthButtons'
@@ -66,13 +67,14 @@ function SignupPage() {
         callbackURL: `${window.location.origin}/dashboard`,
       })
       if (result.error) {
-        setError(result.error.message || 'Sign up failed')
+        toast.error(result.error.message || 'Sign up failed')
       } else {
         await refreshSession()
+        toast.success('Account created — check your email to verify.')
         setEmailSent(true)
       }
     } catch {
-      setError('An unexpected error occurred.')
+      toast.error('An unexpected error occurred.')
     } finally {
       setLoading(false)
     }
@@ -87,8 +89,9 @@ function SignupPage() {
         email,
         callbackURL: `${window.location.origin}/dashboard`,
       })
+      toast.success('Verification email resent.')
     } catch {
-      setError('Failed to resend verification email.')
+      toast.error('Failed to resend verification email.')
     } finally {
       setResending(false)
     }

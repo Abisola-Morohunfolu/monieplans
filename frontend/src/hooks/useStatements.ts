@@ -47,6 +47,7 @@ export function useConvertTransactionToExpense() {
   return useMutation({
     mutationFn: (transactionId: string) =>
       api.post(`/api/statements/transactions/${transactionId}/convert-to-expense`),
+    meta: { successMessage: 'Converted to expense' },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.statements.all })
       queryClient.invalidateQueries({ queryKey: queryKeys.expenses.all })
@@ -61,6 +62,7 @@ export function useConvertTransactionToIncome() {
   return useMutation({
     mutationFn: (transactionId: string) =>
       api.post(`/api/statements/transactions/${transactionId}/convert-to-income`),
+    meta: { successMessage: 'Converted to income' },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.statements.all })
       queryClient.invalidateQueries({ queryKey: queryKeys.income.all })
@@ -75,6 +77,7 @@ export function useUpdateTransactionCategory() {
   return useMutation({
     mutationFn: ({ transactionId, categoryId }: { transactionId: string; categoryId: string | null }) =>
       api.patch(`/api/statements/transactions/${transactionId}`, { categoryId }),
+    meta: { successMessage: 'Category updated' },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.statements.all })
     },
@@ -91,6 +94,7 @@ export function useUploadStatement() {
       formData.append('budgetPeriodId', budgetPeriodId)
       return api.post('/api/statements/upload', formData)
     },
+    meta: { successMessage: 'Statement uploaded' },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.statements.all })
     },

@@ -1,5 +1,6 @@
 import { Link, useSearch } from '@tanstack/react-router'
 import { useState, type FormEvent } from 'react'
+import { toast } from 'sonner'
 import { AuthCard } from './AuthCard'
 import { Button } from '../ui/Button'
 import { PasswordInput } from '../ui/PasswordInput'
@@ -45,7 +46,9 @@ export function ResetPasswordPage() {
         onSuccess: (result) => {
           if (result.error) {
             setError(result.error.message || 'Reset failed.')
+            toast.error(result.error.message || 'Reset failed.')
           } else {
+            toast.success('Password updated.')
             setDone(true)
           }
         },

@@ -47,6 +47,7 @@ export function useActivateBudget(budgetId: string) {
 
   return useMutation({
     mutationFn: () => api.post(`/api/budgets/${budgetId}/activate`),
+    meta: { successMessage: 'Budget activated' },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.budgets.detail(budgetId) })
       queryClient.invalidateQueries({ queryKey: ['budgets'] })
@@ -63,6 +64,7 @@ export function useLockBudget(budgetId: string) {
 
   return useMutation({
     mutationFn: () => api.post(`/api/budgets/${budgetId}/lock`),
+    meta: { successMessage: 'Budget locked' },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.budgets.detail(budgetId) })
       queryClient.invalidateQueries({ queryKey: ['budgets'] })

@@ -1,7 +1,7 @@
 import { useState } from 'react'
+import { toast } from 'sonner'
 import { signIn } from '../../lib/auth'
 import { Button } from '../ui/Button'
-import { ErrorMessage } from '../ui/ErrorMessage'
 
 function GithubIcon() {
   return (
@@ -25,19 +25,17 @@ function GoogleIcon() {
 
 export function OAuthButtons() {
   const [loadingProvider, setLoadingProvider] = useState<'google' | 'github' | null>(null)
-  const [error, setError] = useState('')
 
   const handleOAuth = async (provider: 'google' | 'github') => {
     if (loadingProvider) return
     setLoadingProvider(provider)
-    setError('')
     try {
       await signIn.social({
         provider,
         callbackURL: `${window.location.origin}/dashboard`,
       })
     } catch {
-      setError(`Failed to sign in with ${provider === 'google' ? 'Google' : 'GitHub'}.`)
+      toast.error(`Failed to sign in with ${provider === 'google' ? 'Google' : 'GitHub'}.`)
       setLoadingProvider(null)
     }
   }
@@ -69,8 +67,6 @@ export function OAuthButtons() {
           Continue with Google
         </Button>
       </div>
-
-      {error && <ErrorMessage>{error}</ErrorMessage>}
     </>
   )
 }

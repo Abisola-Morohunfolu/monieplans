@@ -1,5 +1,6 @@
 import { useNavigate, useSearch } from '@tanstack/react-router'
 import { useEffect, useRef, useState } from 'react'
+import { toast } from 'sonner'
 import { useAuth } from '../../hooks/useAuth'
 import { AuthCard } from './AuthCard'
 import { Button } from '../ui/Button'
@@ -30,7 +31,9 @@ export function VerifyEmailPage() {
       onSuccess: (result) => {
         if (result.error) {
           setError(result.error.message || 'Verification failed.')
+          toast.error(result.error.message || 'Verification failed.')
         } else {
+          toast.success('Email verified!')
           refreshSession()
           navigate({ to: '/dashboard' })
         }

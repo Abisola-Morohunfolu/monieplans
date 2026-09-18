@@ -24,6 +24,7 @@ export function useUploadReceipt() {
       if (receiptType) formData.append('receiptType', receiptType)
       return api.post<Receipt>('/api/expenses/receipts/upload', formData)
     },
+    meta: { successMessage: 'Receipt uploaded' },
   })
 }
 
@@ -33,6 +34,7 @@ export function useConfirmReceiptItems(receiptId: string) {
   return useMutation({
     mutationFn: (itemIds: string[]) =>
       api.post(`/api/expenses/receipts/${receiptId}/confirm-items`, { itemIds }),
+    meta: { successMessage: 'Items confirmed' },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.receipts.items(receiptId) })
       queryClient.invalidateQueries({ queryKey: ['expenses'] })
@@ -47,6 +49,7 @@ export function useDismissReceiptItem(receiptId: string) {
   return useMutation({
     mutationFn: (itemId: string) =>
       api.post(`/api/expenses/receipts/${receiptId}/dismiss-item/${itemId}`),
+    meta: { successMessage: 'Item dismissed' },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.receipts.items(receiptId) })
     },

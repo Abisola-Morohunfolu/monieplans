@@ -33,6 +33,7 @@ export function useCreateGoal() {
 
   return useMutation({
     mutationFn: (data: CreateGoalInput) => api.post('/api/goals', data),
+    meta: { successMessage: 'Goal created' },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.goals.all })
     },
@@ -45,6 +46,7 @@ export function useUpdateGoal() {
   return useMutation({
     mutationFn: ({ id, data }: { id: string; data: Partial<Goal> }) =>
       api.patch(`/api/goals/${id}`, data),
+    meta: { successMessage: 'Goal updated' },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.goals.all })
     },
@@ -56,6 +58,7 @@ export function useDeleteGoal() {
 
   return useMutation({
     mutationFn: (goalId: string) => api.delete(`/api/goals/${goalId}`),
+    meta: { successMessage: 'Goal deleted' },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.goals.all })
     },

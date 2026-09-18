@@ -32,6 +32,7 @@ export function useCreateBudget() {
 
   return useMutation({
     mutationFn: (data: CreateBudgetInput) => api.post('/api/budgets', data),
+    meta: { successMessage: 'Budget created' },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['budgets'] })
       queryClient.invalidateQueries({ queryKey: queryKeys.budgets.active })
