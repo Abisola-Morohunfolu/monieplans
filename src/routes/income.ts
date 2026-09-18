@@ -21,20 +21,31 @@ incomeRouter.post('/', validateJson(createIncomeSchema), async (c) => {
     typeof createIncomeSchema.parse
   >;
 
-  const [budgetPeriod] = await db
-    .select()
-    .from(schema.budgetPeriods)
-    .where(
-      and(
-        eq(schema.budgetPeriods.userId, user.id),
-        eq(schema.budgetPeriods.status, 'active'),
-      ),
-    )
-    .orderBy(desc(schema.budgetPeriods.periodStartDate))
-    .limit(1);
+  const [budgetPeriod] = body.budgetPeriodId
+    ? await db
+        .select()
+        .from(schema.budgetPeriods)
+        .where(
+          and(
+            eq(schema.budgetPeriods.id, body.budgetPeriodId),
+            eq(schema.budgetPeriods.userId, user.id),
+          ),
+        )
+        .limit(1)
+    : await db
+        .select()
+        .from(schema.budgetPeriods)
+        .where(
+          and(
+            eq(schema.budgetPeriods.userId, user.id),
+            eq(schema.budgetPeriods.status, 'active'),
+          ),
+        )
+        .orderBy(desc(schema.budgetPeriods.periodStartDate))
+        .limit(1);
 
   if (!budgetPeriod) {
-    throw new HTTPException(400, { message: 'No active budget period found' });
+    throw new HTTPException(400, { message: 'No budget period found' });
   }
 
   if (body.categoryId) {

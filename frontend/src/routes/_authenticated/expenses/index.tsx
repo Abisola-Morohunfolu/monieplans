@@ -1,7 +1,8 @@
-import { createFileRoute } from '@tanstack/react-router'
+import { createFileRoute, Link } from '@tanstack/react-router'
 import { useEffect, useState } from 'react'
 import { Receipt, Plus, Search, Trash2, Pencil, ScanLine } from 'lucide-react'
 import { useExpenses, useDeleteExpense } from '../../../hooks/useExpenses'
+import { useActiveBudget } from '../../../hooks/useBudgets'
 import { usePreferredCurrency } from '../../../hooks/useCurrency'
 import { usePagination, PAGE_SIZE } from '../../../hooks/usePagination'
 import { formatCurrency } from '../../../lib/currency'
@@ -31,6 +32,7 @@ function ExpensesPage() {
   const [receiptOpen, setReceiptOpen] = useState(false)
   const [editing, setEditing] = useState<Expense | null>(null)
   const currency = usePreferredCurrency()
+  const { data: activeBudget } = useActiveBudget()
 
   useEffect(() => {
     const t = setTimeout(() => setDebouncedSearch(search), 300)
@@ -39,6 +41,7 @@ function ExpensesPage() {
 
   const offset = (page - 1) * PAGE_SIZE
   const { data: expensesData, isLoading } = useExpenses({
+    budgetPeriodId: activeBudget?.id,
     search: debouncedSearch || undefined,
     limit: PAGE_SIZE,
     offset,
@@ -69,7 +72,17 @@ function ExpensesPage() {
       <header className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
         <div>
           <h2 className="font-heading text-3xl font-medium text-text-primary">Expenses</h2>
-          <p className="text-text-secondary mt-1">Track and manage your daily spending.</p>
+          <p className="text-text-secondary mt-1">
+            Track and manage your daily spending.
+            {activeBudget && (
+              <span>
+                {' '}for{' '}
+                <Link to="/budgets/$budgetId" params={{ budgetId: activeBudget.id }} className="text-sage hover:text-forest transition-colors">
+                  {activeBudget.name}
+                </Link>
+              </span>
+            )}
+          </p>
         </div>
         <div className="flex gap-3">
           <button className="btn-secondary" onClick={() => setReceiptOpen(true)}>

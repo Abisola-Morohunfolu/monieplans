@@ -32,7 +32,6 @@ export const queryKeys = {
     all: ['statements'] as const,
     detail: (id: string) => ['statements', id] as const,
     transactions: (id: string) => ['statements', id, 'transactions'] as const,
-    allTransactions: (params?: unknown) => ['statements', 'transactions', params] as const,
   },
   analytics: {
     all: ['analytics'] as const,

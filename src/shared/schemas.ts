@@ -127,6 +127,7 @@ export const generateInsightsSchema = z.object({
 export const createIncomeSchema = z.object({
   amount: z.number().min(0),
   incomeDate: z.string(),
+  budgetPeriodId: z.string().optional(),
   categoryId: z.string().optional(),
   description: z.string().optional(),
 });
