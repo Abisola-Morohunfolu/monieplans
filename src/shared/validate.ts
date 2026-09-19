@@ -5,7 +5,7 @@ import { HTTPException } from 'hono/http-exception';
 export function validateJson<T>(schema: z.ZodSchema<T>) {
   return async (c: Context, next: Next) => {
     try {
-      const body = await c.req.json();
+      const body = (await c.req.json()) as unknown;
       const result = schema.parse(body);
       c.set('body', result as Record<string, unknown>);
       await next();

@@ -1,173 +1,150 @@
 import { describe, it, expect } from 'vitest';
 import {
-  createBudgetSchema,
-  createExpenseSchema,
-  updateExpenseSchema,
-  createGoalSchema,
-  updateGoalSchema,
+  createCategorySchema,
   updateProfileSchema,
-  createFixedExpenseTemplateSchema,
-  updateFixedExpenseTemplateSchema,
-  reserveGoalSchema,
-  updateRecommendationStatusSchema,
-  generateInsightsSchema,
+  createTransactionSchema,
+  updateTransactionSchema,
+  listTransactionsQuerySchema,
+  setAssignmentsSchema,
+  monthParamSchema,
 } from './schemas';
 
 describe('Zod schemas', () => {
-  describe('createBudgetSchema', () => {
-    const validBudget = {
-      periodStartDate: '2026-08-01',
-      periodEndDate: '2026-08-31',
-      planningMode: 'income_based' as const,
-      currency: 'NGN',
-    };
-
-    it('accepts valid input', () => {
-      expect(() => createBudgetSchema.parse(validBudget)).not.toThrow();
+  describe('monthParamSchema', () => {
+    it('accepts YYYY-MM', () => {
+      expect(() => monthParamSchema.parse('2026-08')).not.toThrow();
     });
 
-    it('applies defaults', () => {
-      const result = createBudgetSchema.parse(validBudget);
-      expect(result.cycleType).toBe('calendar_month');
-      expect(result.planningMode).toBe('income_based');
-      expect(result.currency).toBe('NGN');
+    it('rejects invalid formats', () => {
+      expect(() => monthParamSchema.parse('2026-8')).toThrow();
+      expect(() => monthParamSchema.parse('26-08')).toThrow();
+      expect(() => monthParamSchema.parse('2026-13')).toThrow();
+      expect(() => monthParamSchema.parse('2026-08-01')).toThrow();
     });
+  });
 
-    it('rejects invalid planningMode', () => {
-      expect(() =>
-        createBudgetSchema.parse({ ...validBudget, planningMode: 'invalid' }),
-      ).toThrow();
-    });
-
-    it('accepts optional monthlyIncomeAmount', () => {
-      const result = createBudgetSchema.parse({
-        ...validBudget,
-        monthlyIncomeAmount: 100000,
+  describe('createCategorySchema', () => {
+    it('accepts valid category', () => {
+      const result = createCategorySchema.parse({
+        name: 'Pets',
+        kind: 'expense',
       });
-      expect(result.monthlyIncomeAmount).toBe(100000);
-    });
-  });
-
-  describe('createExpenseSchema', () => {
-    const validExpense = {
-      amount: 100,
-      expenseDate: '2026-08-01',
-    };
-
-    it('accepts valid input', () => {
-      expect(() => createExpenseSchema.parse(validExpense)).not.toThrow();
+      expect(result.name).toBe('Pets');
+      expect(result.kind).toBe('expense');
     });
 
-    it('rejects zero amount', () => {
+    it('defaults kind to expense', () => {
+      expect(createCategorySchema.parse({ name: 'Pets' }).kind).toBe('expense');
+    });
+
+    it('rejects empty name', () => {
+      expect(() => createCategorySchema.parse({ name: '  ' })).toThrow();
+    });
+
+    it('rejects invalid kind', () => {
       expect(() =>
-        createExpenseSchema.parse({ ...validExpense, amount: 0 }),
-      ).toThrow();
-    });
-
-    it('rejects negative amount', () => {
-      expect(() =>
-        createExpenseSchema.parse({ ...validExpense, amount: -50 }),
+        createCategorySchema.parse({ name: 'Pets', kind: 'savings' }),
       ).toThrow();
     });
   });
 
-  describe('updateExpenseSchema', () => {
+  describe('updateProfileSchema', () => {
     it('allows partial update', () => {
-      const result = updateExpenseSchema.parse({ amount: 200 });
-      expect(result.amount).toBe(200);
+      expect(updateProfileSchema.parse({ preferredCurrency: 'USD' })).toEqual({
+        preferredCurrency: 'USD',
+      });
     });
 
     it('allows empty object', () => {
-      expect(() => updateExpenseSchema.parse({})).not.toThrow();
+      expect(() => updateProfileSchema.parse({})).not.toThrow();
     });
   });
 
-  describe('createGoalSchema', () => {
-    it('accepts valid goal', () => {
-      const result = createGoalSchema.parse({
-        name: 'Emergency Fund',
-        targetAmount: 500000,
-      });
-      expect(result.name).toBe('Emergency Fund');
-      expect(result.targetAmount).toBe(500000);
-      expect(result.priorityRank).toBe(0);
-    });
-  });
+  describe('createTransactionSchema', () => {
+    const valid = {
+      type: 'expense' as const,
+      amount: 10.5,
+      occurredOn: '2026-08-01',
+    };
 
-  describe('updateGoalSchema', () => {
-    it('allows partial updates', () => {
-      const result = updateGoalSchema.parse({ name: 'Updated Goal' });
-      expect(result.name).toBe('Updated Goal');
+    it('accepts valid input', () => {
+      expect(() => createTransactionSchema.parse(valid)).not.toThrow();
     });
 
-    it('validates status enum', () => {
-      expect(() => updateGoalSchema.parse({ status: 'invalid' })).toThrow();
-      expect(() => updateGoalSchema.parse({ status: 'active' })).not.toThrow();
-    });
-  });
-
-  describe('createFixedExpenseTemplateSchema', () => {
-    it('accepts valid template', () => {
-      const result = createFixedExpenseTemplateSchema.parse({
-        name: 'Rent',
-        amount: 50000,
-      });
-      expect(result.cadence).toBe('every_period');
-    });
-
-    it('rejects negative amount', () => {
+    it('rejects non-positive amount', () => {
       expect(() =>
-        createFixedExpenseTemplateSchema.parse({ name: 'Rent', amount: -10 }),
+        createTransactionSchema.parse({ ...valid, amount: 0 }),
+      ).toThrow();
+      expect(() =>
+        createTransactionSchema.parse({ ...valid, amount: -5 }),
+      ).toThrow();
+    });
+
+    it('rejects invalid type', () => {
+      expect(() =>
+        createTransactionSchema.parse({ ...valid, type: 'transfer' }),
+      ).toThrow();
+    });
+
+    it('rejects invalid date', () => {
+      expect(() =>
+        createTransactionSchema.parse({ ...valid, occurredOn: '01-08-2026' }),
       ).toThrow();
     });
   });
 
-  describe('reserveGoalSchema', () => {
-    it('accepts valid reservations', () => {
-      const result = reserveGoalSchema.parse({
-        reservations: [
-          { goalId: 'abc', reservedAmount: 1000 },
-          { goalId: 'def', reservedAmount: 500 },
+  describe('updateTransactionSchema', () => {
+    it('allows partial update', () => {
+      expect(updateTransactionSchema.parse({ amount: 200 })).toEqual({
+        amount: 200,
+      });
+    });
+
+    it('allows empty object', () => {
+      expect(() => updateTransactionSchema.parse({})).not.toThrow();
+    });
+  });
+
+  describe('listTransactionsQuerySchema', () => {
+    it('accepts filters', () => {
+      expect(() =>
+        listTransactionsQuerySchema.parse({
+          month: '2026-08',
+          type: 'expense',
+        }),
+      ).not.toThrow();
+    });
+
+    it('rejects invalid month', () => {
+      expect(() =>
+        listTransactionsQuerySchema.parse({ month: 'bad' }),
+      ).toThrow();
+    });
+
+    it('rejects invalid type', () => {
+      expect(() =>
+        listTransactionsQuerySchema.parse({ type: 'nope' }),
+      ).toThrow();
+    });
+  });
+
+  describe('setAssignmentsSchema', () => {
+    it('accepts valid assignments', () => {
+      const result = setAssignmentsSchema.parse({
+        assignments: [
+          { categoryId: 'a', assigned: 1000 },
+          { categoryId: 'b', assigned: 0 },
         ],
       });
-      expect(result.reservations).toHaveLength(2);
+      expect(result.assignments).toHaveLength(2);
     });
 
-    it('rejects negative reservedAmount', () => {
+    it('rejects negative assigned', () => {
       expect(() =>
-        reserveGoalSchema.parse({
-          reservations: [{ goalId: 'abc', reservedAmount: -1 }],
+        setAssignmentsSchema.parse({
+          assignments: [{ categoryId: 'a', assigned: -1 }],
         }),
       ).toThrow();
-    });
-  });
-
-  describe('updateRecommendationStatusSchema', () => {
-    it('accepts dismissed', () => {
-      expect(() =>
-        updateRecommendationStatusSchema.parse({ status: 'dismissed' }),
-      ).not.toThrow();
-    });
-
-    it('accepts accepted', () => {
-      expect(() =>
-        updateRecommendationStatusSchema.parse({ status: 'accepted' }),
-      ).not.toThrow();
-    });
-
-    it('rejects invalid status', () => {
-      expect(() =>
-        updateRecommendationStatusSchema.parse({ status: 'pending' }),
-      ).toThrow();
-    });
-  });
-
-  describe('generateInsightsSchema', () => {
-    it('requires budgetPeriodId', () => {
-      expect(() => generateInsightsSchema.parse({})).toThrow();
-      expect(() =>
-        generateInsightsSchema.parse({ budgetPeriodId: 'abc' }),
-      ).not.toThrow();
     });
   });
 });

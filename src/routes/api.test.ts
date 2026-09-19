@@ -1,5 +1,4 @@
 import { describe, it, expect } from 'vitest';
-import { Hono } from 'hono';
 import app from '../index';
 
 describe('API', () => {
