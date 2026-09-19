@@ -10,191 +10,22 @@ export interface Paginated<T> {
   pagination: PaginationMeta
 }
 
-export interface Budget {
-  id: string
-  name: string
-  status: 'draft' | 'active' | 'locked'
-  cycle: 'weekly'
-  cycleType: string
-  periodStartDate: string
-  periodEndDate: string
-  presetMonth: string | null
-  cap: number
-  income: number
-  planningMode: string
-  currency?: string
-  notes?: string | null
-  createdAt: string
-  updatedAt: string
-}
+export type TransactionType = 'income' | 'expense'
 
-export interface BudgetPeriod {
+export interface Transaction {
   id: string
-  budgetId: string
-  name: string
-  startDate: string
-  endDate: string
-  status: string
-}
-
-export interface WeeklyAllocation {
-  id: string
-  budgetPeriodId: string
-  weekIndex: number
-  weekStartDate: string
-  weekEndDate: string
-  allocationStrategy: string
-  plannedAmount: number
-  finalPlannedAmount: number
-  actualSpent: number
-  remaining: number
-  status: 'upcoming' | 'current' | 'completed'
-}
-
-export interface CategoryTotal {
+  type: TransactionType
+  amount: number
+  currency: string
+  occurredOn: string
   categoryId: string | null
   categoryName: string | null
   categoryCode: string | null
-  amount: number
-}
-
-export interface BudgetSummary extends Budget {
-  cap: number
-  incomeTotal: number
-  spent: number
-  remaining: number
-  categoryTotals: CategoryTotal[]
-  weeklyAllocations: WeeklyAllocation[]
-  fixedExpensesTotal?: number
-  fixedExpenseItems?: FixedExpenseItem[]
-}
-
-export interface Expense {
-  id: string
-  amount?: number
-  description: string | null
-  categoryId: string | null
-  categoryName?: string | null
-  categoryCode?: string | null
-  budgetPeriodId: string
-  weeklyBudgetAllocationId?: string | null
-  expenseDate: string
-  date?: string
-  sourceType?: string
-  merchantName?: string | null
-  receiptParseConfidence?: number | null
-  receiptParseStatus?: string
+  payee: string | null
+  note: string | null
+  source: string
   createdAt: string
-  updatedAt?: string
-}
-
-export interface ExpenseParams {
-  search?: string
-  categoryId?: string
-  budgetPeriodId?: string
-  startDate?: string
-  endDate?: string
-  sourceType?: string
-  limit?: number
-  offset?: number
-}
-
-export interface IncomeEntry {
-  id: string
-  amount?: number
-  description: string | null
-  categoryId: string | null
-  categoryName?: string | null
-  budgetPeriodId: string
-  transactionId?: string | null
-  incomeDate: string
-  date?: string
-  sourceType?: string
-  createdAt: string
-  updatedAt?: string
-}
-
-export interface Goal {
-  id: string
-  name: string
-  targetAmount: number
-  currentAmount: number
-  deadline: string | null
-  status: 'active' | 'completed' | 'archived'
-  priorityRank: number
-  reserveInBudget: boolean
-  notes: string | null
-  createdAt: string
-  updatedAt?: string
-}
-
-export interface FixedExpenseTemplate {
-  id: string
-  name: string
-  amount: number
-  categoryId: string | null
-  categoryName?: string | null
-  frequency: string
-  dueDay?: number
-  createdAt: string
-  updatedAt?: string
-}
-
-export interface FixedExpenseItem {
-  id: string
-  budgetPeriodId: string
-  fixedExpenseTemplateId: string | null
-  name: string
-  categoryId: string | null
-  categoryName?: string | null
-  amount: number
-  dueDate: string | null
-  originType: string
-  inclusionStatus: string
-  isMandatory: boolean
-  isProtectedFromCutRecommendations: boolean
-  notes: string | null
-  createdAt: string
-  updatedAt?: string
-}
-
-export interface StatementUpload {
-  id: string
-  fileName: string
-  budgetPeriodId?: string | null
-  uploadStatus: string
-  statementPeriodStart?: string | null
-  statementPeriodEnd?: string | null
-  transactionCount?: number
-  status?: string
-  createdAt?: string
-  uploadedAt?: string
-  processedAt?: string | null
-}
-
-export interface StatementTransaction {
-  id: string
-  statementUploadId: string | null
-  amount?: number
-  descriptionRaw: string
-  description?: string
-  descriptionNormalized?: string | null
-  postedDate: string
-  date?: string
-  direction: string
-  currency?: string
-  merchantName?: string | null
-  transactionType?: string | null
-  isInternalBookkeeping?: boolean
-  parentTransactionId?: string | null
-  categoryId?: string | null
-  categoryName?: string | null
-  isUserCorrected?: boolean
-  isExcludedFromAnalysis?: boolean
-  convertedToExpenseId?: string | null
-  convertedToIncomeId?: string | null
-  createdAt: string
-  updatedAt?: string
+  updatedAt: string
 }
 
 export interface Category {
@@ -202,112 +33,86 @@ export interface Category {
   code: string
   name: string
   groupName: string | null
-  kind: string
+  kind: 'income' | 'expense'
   isSystem: boolean
 }
 
-export interface Receipt {
+export interface Budget {
   id: string
-  userId: string
-  expenseEntryId?: string | null
-  fileName: string
-  storagePath: string
-  receiptType: string
-  parseStatus: string
-  parsedAmountCents?: number | null
-  parsedExpenseDate?: string | null
-  parsedMerchantName?: string | null
-  isActive: boolean
+  month: string
+  currency: string
+  status: 'draft' | 'active'
   createdAt: string
-  processedAt?: string | null
+  updatedAt: string
 }
 
-export interface ReceiptLineItem {
-  id: string
-  receiptId: string
+export interface CategoryBudget {
+  categoryId: string
+  assigned: number
+}
+
+export interface CategorySummary extends Category {
+  assigned: number
+  activity: number
+  available: number
+}
+
+export interface BudgetTotals {
+  totalAssigned: number
+  totalIncome: number
+  totalExpense: number
+  unassigned: number
+}
+
+export interface BudgetSummary extends Budget {
+  categories: CategorySummary[]
+  totals: BudgetTotals
+}
+
+export interface TransactionListParams {
+  month?: string
+  categoryId?: string
+  type?: TransactionType
+  search?: string
+  limit?: number
+  offset?: number
+}
+
+export interface CreateTransactionInput {
+  type: TransactionType
+  amount: number
+  occurredOn: string
+  categoryId?: string
+  payee?: string
+  note?: string
+}
+
+export type UpdateTransactionInput = Partial<CreateTransactionInput>
+
+export interface CreateCategoryInput {
   name: string
-  quantity: number
-  unitPriceCents?: number | null
-  totalPriceCents: number
-  categoryId?: string | null
-  status: string
-  createdAt: string
-  updatedAt?: string
+  groupName?: string
+  kind?: 'income' | 'expense'
+}
+
+export interface SetAssignmentsInput {
+  assignments: { categoryId: string; assigned: number }[]
 }
 
 export interface User {
   id: string
   email: string
   name: string
-  createdAt: string
 }
 
 export interface UserProfile {
-  name: string
+  userId: string
   email: string
-  preferredCurrency?: string
-  timezone?: string | null
-  weekStartDay?: string | null
-}
-
-export interface AnalyticsRecommendation {
-  id: string
-  title: string
-  body: string
-  description?: string
-  status: 'active' | 'dismissed' | 'accepted'
+  name: string
+  profileId: string
+  fullName: string | null
+  preferredCurrency: string
+  timezone: string | null
   createdAt: string
-}
-
-export interface AnalyticsInsights {
-  totalSpent: number
-  budgetRemaining: number
-  topCategory: string
-  recommendations: AnalyticsRecommendation[]
-}
-
-export interface CreateBudgetInput {
-  periodStartDate: string
-  periodEndDate: string
-  planningMode: 'income_based' | 'spending_cap_based'
-  cycleType?: string
-  monthlyIncomeAmount?: number
-  monthlyBudgetCapAmount?: number
-  currency?: string
-  notes?: string
-  activateImmediately?: boolean
-}
-
-export interface CreateExpenseInput {
-  amount: number
-  expenseDate: string
-  categoryId?: string
-  description?: string
-  merchantName?: string
-}
-
-export interface CreateGoalInput {
-  name: string
-  targetAmount: number
-  targetDate?: string
-  priorityRank?: number
-  reserveInBudget?: boolean
-  notes?: string
-}
-
-export interface CreateFixedExpenseInput {
-  name: string
-  amount: number
-  categoryId?: string
-  cadence?: string
-  defaultDueDay?: number
-  notes?: string
-}
-
-export interface CreateIncomeInput {
-  amount: number
-  incomeDate: string
-  budgetPeriodId?: string
-  categoryId?: string
-  description?: string
+  updatedAt: string
 }

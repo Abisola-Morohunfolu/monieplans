@@ -32,7 +32,7 @@ export function OAuthButtons() {
     try {
       await signIn.social({
         provider,
-        callbackURL: `${window.location.origin}/dashboard`,
+        callbackURL: `${window.location.origin}/budgets`,
       })
     } catch {
       toast.error(`Failed to sign in with ${provider === 'google' ? 'Google' : 'GitHub'}.`)

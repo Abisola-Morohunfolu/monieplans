@@ -55,7 +55,7 @@ function LoginPage() {
   }
 
   if (isAuthenticated) {
-    return <Navigate to={redirect || '/dashboard'} replace />
+    return <Navigate to={redirect || '/budgets'} replace />
   }
 
   const handleSubmit = async (e: FormEvent) => {
@@ -76,7 +76,7 @@ function LoginPage() {
       } else {
         toast.success('Welcome back!')
         await refreshSession()
-        navigate({ to: redirect || '/dashboard' })
+        navigate({ to: redirect || '/budgets' })
       }
     } catch {
       toast.error('An unexpected error occurred.')

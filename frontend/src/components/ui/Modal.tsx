@@ -26,7 +26,7 @@ export function Modal({ open, onClose, title, children, maxWidth = 'max-w-lg' }:
   if (!open) return null
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4">
       <div
         className="absolute inset-0 bg-text-primary/30 backdrop-blur-sm"
         onClick={onClose}
@@ -35,7 +35,8 @@ export function Modal({ open, onClose, title, children, maxWidth = 'max-w-lg' }:
       <div
         role="dialog"
         aria-modal="true"
-        className={`relative w-full ${maxWidth} bg-bg-lightest rounded-[26px] border border-text-primary/8 shadow-[0_30px_60px_-20px_rgba(23,21,18,0.35)] max-h-[90vh] overflow-y-auto`}
+        className={`relative w-full ${maxWidth} bg-bg-lightest rounded-t-[26px] sm:rounded-[26px] border border-text-primary/8 shadow-[0_30px_60px_-20px_rgba(23,21,18,0.35)] max-h-[92dvh] overflow-y-auto`}
+        style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
       >
         {title && (
           <div className="flex items-center justify-between px-6 pt-6 pb-2">

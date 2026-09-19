@@ -29,9 +29,35 @@
 - [x] Seed updated: Savings/Transfer reclassified to `expense`; added system income
       categories `Salary` + `Other Income`. 13 total. Applied + verified locally.
 
-## Stage 2 — backend routes + serializers/schemas (BE-*) — NOT STARTED
+## Stage 2 — backend routes + serializers/schemas (BE-*) — DONE
 
-## Stage 3 — frontend (FE-*) — NOT STARTED
+- [x] `routes/transactions.ts` — CRUD, list/filter (month/category/type/search), soft delete.
+- [x] `routes/budgets.ts` — month budget upsert (`PUT /:month`), assignments
+      (`PUT /:month/assignments`), summary (`GET /:month/summary`) with derived
+      assigned/activity/available + `unassigned` hint.
+- [x] `routes/categories.ts` — list + custom category create.
+- [x] `routes/users.ts` — slim profile (`preferredCurrency`, `timezone`, `fullName`).
+- [x] Removed: expenses, income, fixed-expenses, goals, statements, analytics routes;
+      queue consumers; `lib/extract.ts` + `lib/categorize.ts`.
+- [x] Rewrote serializers + zod schemas; slimmed `index.ts` wiring, helpers, `Env`.
+- [x] `yarn typecheck` green.
+
+## Stage 3 — frontend (FE-*) — DONE
+
+- [x] Types rewritten to v1 model (`Transaction`, `Budget` (month), `CategoryBudget`,
+      `BudgetSummary`, inputs).
+- [x] Query keys rewritten (`transactions`, `budgets.month/summary`, `categories`).
+- [x] Hooks: `useTransactions` (create/update/delete); `useBudget`/`useBudgetSummary`/
+      `useSetAssignments` month-based; `useCategories` (+ create). Removed old hooks.
+- [x] Components: `TransactionFormModal` (type toggle, kind-filtered category select);
+      removed old form modals + `StatementImportTab`.
+- [x] Routes: single budget page (month nav + inline assignment), `transactions` ledger,
+      `dashboard` → redirect to `/budgets`, slim `onboarding` (currency only), slim
+      `profile`; removed expenses/fixed-expenses/goals routes.
+- [x] Nav (`AppLayout`): Budget / Transactions / Settings.
+- [x] Mobile: bottom tab bar (mobile) + sidebar (desktop), bottom-sheet modal,
+      `viewport-fit=cover`, safe-area padding, 16px inputs (iOS zoom fix).
+- [x] `npm run build` + `npm run lint` green.
 
 ## Stage 4 — infra cleanup (INFRA-*) — NOT STARTED
 
@@ -42,10 +68,10 @@
 - Migration strategy: fresh empty DB (single 0000 migration, auth tables included).
 - Rollover: reset each month. Income: transaction + derived `unassigned` hint.
 - Categories: grouped by `group_name`; system kinds limited to `income|expense`.
+- Mobile nav: bottom tab bar (Budget / Transactions / Settings) on mobile, sidebar on desktop.
 
-## ⚠️ Known red state (expected mid-rewrite)
+## ⚠️ Remaining red/deferred
 
-Stage 1 removed tables that ~11 backend files still import (`routes/*.ts`,
-`lib/categorize.ts`, `consumers/*.ts`, `routes/helpers.ts`, `shared/types.ts`).
-`yarn typecheck` is expected to FAIL until Stage 2 (BE-*) lands. Do not run
-deploy/lint from here until the backend rewrite is merged in the same sequence.
+- Stage 4: `wrangler.jsonc` still declares `r2_buckets` + `queues` (unused since Stage 2);
+  `@llamaindex/llama-cloud` still in `package.json`; `LLAMA_CLOUD_API_KEY` in `.env.example`.
+- Stage 5: `e2e/*.spec.ts` still reference removed endpoints; docs + diagrams stale.
