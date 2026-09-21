@@ -2,8 +2,7 @@
 
 > **⚠️ SUPERSEDED.** This spec describes the old frontend and no longer reflects
 > the codebase. The current v1 UI (single budget page, transactions ledger, mobile
-> bottom-tab shell) is described in [`PRD.md`](./PRD.md) and
-> [`.agent/REWORK_PLAN.md`](./.agent/REWORK_PLAN.md). Kept for historical reference only.
+> bottom-tab shell) is described in [`PRD.md`](./PRD.md). Kept for historical reference only.
 
 > **Package:** `frontend`
 > **Repository:** monieplans
