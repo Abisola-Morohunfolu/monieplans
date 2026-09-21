@@ -66,9 +66,9 @@ export function TransactionFormModal({
       type,
       amount: numericAmount,
       occurredOn,
-      categoryId: categoryId ?? undefined,
-      payee: payee || undefined,
-      note: note || undefined,
+      categoryId: categoryId ?? null,
+      payee: payee || null,
+      note: note || null,
     }
 
     if (transaction) {

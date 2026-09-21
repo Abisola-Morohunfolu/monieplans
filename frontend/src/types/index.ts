@@ -82,9 +82,9 @@ export interface CreateTransactionInput {
   type: TransactionType
   amount: number
   occurredOn: string
-  categoryId?: string
-  payee?: string
-  note?: string
+  categoryId?: string | null
+  payee?: string | null
+  note?: string | null
 }
 
 export type UpdateTransactionInput = Partial<CreateTransactionInput>

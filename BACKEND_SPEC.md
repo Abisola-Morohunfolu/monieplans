@@ -1,5 +1,10 @@
 # monieplans — Backend API Specification
 
+> **⚠️ SUPERSEDED.** This spec describes the old NestJS/Postgres/Render
+> implementation and no longer reflects the codebase. The current v1 architecture
+> (Hono + Cloudflare Workers + D1) is described in [`PRD.md`](./PRD.md). Kept for
+> historical reference only.
+
 > **Package:** `monieplans-api` v0.0.1
 > **Framework:** NestJS v11 + Drizzle ORM
 > **Updated:** 2026-08-04

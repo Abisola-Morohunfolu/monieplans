@@ -1,23 +1,9 @@
 import { test, expect } from '@playwright/test'
 
-test('dashboard renders its sections for an authenticated user', async ({
-  page,
-}) => {
-  await page.goto('/dashboard')
-  await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible()
-  await expect(page.getByText('Active Budget Cap')).toBeVisible()
-  await expect(page.getByText('Spent')).toBeVisible()
-  await expect(page.getByText('AI Recommendations')).toBeVisible()
-})
-
 test('each authenticated page renders its heading', async ({ page }) => {
   const routes: { path: string; heading: string }[] = [
-    { path: '/budgets', heading: 'Budgets' },
-    { path: '/expenses', heading: 'Expenses' },
+    { path: '/budgets?month=2026-09', heading: 'Budget' },
     { path: '/transactions', heading: 'Transactions' },
-    { path: '/fixed-expenses', heading: 'Fixed Expenses' },
-    { path: '/goals', heading: 'Financial Goals' },
-    { path: '/statements', heading: 'Statements' },
     { path: '/profile', heading: 'Profile & Settings' },
   ]
 
@@ -27,4 +13,19 @@ test('each authenticated page renders its heading', async ({ page }) => {
       page.getByRole('heading', { name: heading, exact: true }),
     ).toBeVisible()
   }
+})
+
+test('sidebar navigation switches between pages', async ({ page }) => {
+  await page.goto('/budgets?month=2026-09')
+  await expect(page.getByRole('heading', { name: 'Budget' })).toBeVisible()
+
+  await page.getByRole('link', { name: 'Transactions' }).click()
+  await expect(
+    page.getByRole('heading', { name: 'Transactions' }),
+  ).toBeVisible()
+
+  await page.getByRole('link', { name: 'Settings' }).click()
+  await expect(
+    page.getByRole('heading', { name: 'Profile & Settings' }),
+  ).toBeVisible()
 })
