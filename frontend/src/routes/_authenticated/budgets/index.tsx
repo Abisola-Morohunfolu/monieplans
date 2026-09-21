@@ -1,7 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { ChevronLeft, ChevronRight, Plus, Wallet, TrendingUp, PiggyBank } from 'lucide-react'
-import { useBudget, useBudgetSummary, useSetAssignments } from '../../../hooks/useBudget'
+import { useActivateBudget, useBudget, useBudgetSummary, useSetAssignments } from '../../../hooks/useBudget'
 import { usePreferredCurrency } from '../../../hooks/useCurrency'
 import { formatCurrency } from '../../../lib/currency'
 import { addMonths, currentMonth, monthLabel } from '../../../lib/month'
@@ -24,10 +24,19 @@ function BudgetsPage() {
   const navigate = Route.useNavigate()
   const month = monthParam ?? currentMonth()
 
-  const { data: budget } = useBudget(month)
+  const { data: budget, isLoading: budgetLoading } = useBudget(month)
   const { data: summary, isLoading } = useBudgetSummary(month, !!budget)
+  const activateBudget = useActivateBudget(month)
   const setAssignments = useSetAssignments(month)
   const currency = usePreferredCurrency()
+
+  const activatedRef = useRef<string | null>(null)
+  useEffect(() => {
+    if (budget !== null) return
+    if (activatedRef.current === month) return
+    activatedRef.current = month
+    activateBudget.mutate()
+  }, [budget, month, activateBudget])
 
   const [draft, setDraft] = useState<Record<string, string>>({})
   const [txOpen, setTxOpen] = useState(false)
@@ -105,7 +114,7 @@ function BudgetsPage() {
         </button>
       </div>
 
-      {isLoading ? (
+      {isLoading || budgetLoading ? (
         <div className="card flex items-center justify-center h-48">
           <p className="text-text-secondary">Loading budget...</p>
         </div>

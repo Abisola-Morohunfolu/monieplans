@@ -47,30 +47,30 @@ function markEmailVerified(): void {
 }
 
 async function seedData(request: APIRequestContext): Promise<void> {
-  const budgets = await request.get(`${API}/api/budgets`)
-  const { data: existing } = (await budgets.json()) as { data: unknown[] }
-  if (existing.length > 0) return
+  const month = '2026-09'
 
-  // Create + activate the budget the same way a user would.
-  const budgetRes = await request.post(`${API}/api/budgets`, {
-    data: {
-      periodStartDate: '2026-09-01',
-      periodEndDate: '2026-09-30',
-      presetMonth: '2026-09',
-      planningMode: 'spending_cap_based',
-      monthlyBudgetCapAmount: 1000,
-      activateImmediately: true,
-    },
-  })
+  const existing = await request.get(`${API}/api/budgets/${month}`)
+  if (existing.ok()) {
+    const { id } = (await existing.json()) as { id?: string }
+    if (id) return
+  }
+
+  // Create the month budget the same way a user would.
+  const budgetRes = await request.put(`${API}/api/budgets/${month}`)
   if (!budgetRes.ok()) {
     throw new Error(
       `Budget seed failed: ${budgetRes.status()} ${await budgetRes.text()}`,
     )
   }
 
-  // Log an expense against the newly-active budget.
-  const expenseRes = await request.post(`${API}/api/expenses`, {
-    data: { amount: 42.5, expenseDate: '2026-09-15', description: 'Groceries' },
+  // Log an expense against the month.
+  const expenseRes = await request.post(`${API}/api/transactions`, {
+    data: {
+      type: 'expense',
+      amount: 42.5,
+      occurredOn: '2026-09-15',
+      payee: 'Groceries',
+    },
   })
   if (!expenseRes.ok()) {
     throw new Error(
@@ -78,13 +78,20 @@ async function seedData(request: APIRequestContext): Promise<void> {
     )
   }
 
-  await request.post(`${API}/api/goals`, {
-    data: { name: 'Emergency Fund', targetAmount: 5000 },
+  // Log income.
+  const incomeRes = await request.post(`${API}/api/transactions`, {
+    data: {
+      type: 'income',
+      amount: 1000,
+      occurredOn: '2026-09-01',
+      payee: 'Salary',
+    },
   })
-
-  await request.post(`${API}/api/fixed-expenses/templates`, {
-    data: { name: 'Rent', amount: 1200 },
-  })
+  if (!incomeRes.ok()) {
+    throw new Error(
+      `Income seed failed: ${incomeRes.status()} ${await incomeRes.text()}`,
+    )
+  }
 }
 
 setup('seed an authenticated session and data', async ({ browser }) => {

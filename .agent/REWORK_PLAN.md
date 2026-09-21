@@ -134,3 +134,4 @@ read (no caches). Imports/AI/goals/recurring deferred.
 - S1 (this): locked the 5 open decisions (fresh DB, staged big-bang, reset rollover, income-as-transaction + hint, grouped categories).
 - S2: Stage 1 (schema + migration) + Stage 2 (backend) landed. `yarn typecheck` green.
 - S3: Stage 3 (frontend) landed — v1 single-ledger UI (single budget page w/ month nav, transactions ledger, slim onboarding/profile), plus mobile bottom-tab shell (FE-M-*). `npm run build` + `npm run lint` green. Stage 4 (infra) + Stage 5 (tests/docs) remain.
+- S4: Stage 4 (infra cleanup) + Stage 5 (tests + docs) landed — dropped R2/queues/`@llamaindex/llama-cloud`; rewrote `api.test.ts` (health + 401 smoke, 48 tests green), e2e seed + specs, README, superseded banners, and regenerated `data-model`/`data-flow` diagrams. v1 rewrite complete.

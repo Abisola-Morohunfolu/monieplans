@@ -1,4 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { isAxiosError } from 'axios'
 import { api } from '../lib/api'
 import { queryKeys } from '../lib/queryKeys'
 import type {
@@ -8,9 +9,20 @@ import type {
   SetAssignmentsInput,
 } from '../types'
 
-async function upsertBudget(month: string): Promise<Budget & { assignments: CategoryBudget[] }> {
-  const { data } = await api.put(`/api/budgets/${month}`)
-  return data
+interface BudgetWithAssignments extends Budget {
+  assignments: CategoryBudget[]
+}
+
+async function fetchBudget(
+  month: string,
+): Promise<BudgetWithAssignments | null> {
+  try {
+    const { data } = await api.get(`/api/budgets/${month}`)
+    return data
+  } catch (error) {
+    if (isAxiosError(error) && error.response?.status === 404) return null
+    throw error
+  }
 }
 
 async function fetchBudgetSummary(month: string): Promise<BudgetSummary> {
@@ -21,8 +33,20 @@ async function fetchBudgetSummary(month: string): Promise<BudgetSummary> {
 export function useBudget(month: string) {
   return useQuery({
     queryKey: queryKeys.budgets.month(month),
-    queryFn: () => upsertBudget(month),
+    queryFn: () => fetchBudget(month),
     enabled: !!month,
+  })
+}
+
+export function useActivateBudget(month: string) {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: () => api.put(`/api/budgets/${month}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.budgets.month(month) })
+      queryClient.invalidateQueries({ queryKey: queryKeys.budgets.summary(month) })
+    },
   })
 }
 

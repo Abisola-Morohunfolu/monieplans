@@ -29,18 +29,18 @@ export const createTransactionSchema = z.object({
   type: z.enum(['income', 'expense']),
   amount: z.number().positive(),
   occurredOn: z.string().date(),
-  categoryId: z.string().optional(),
-  payee: z.string().trim().max(200).optional(),
-  note: z.string().trim().max(1000).optional(),
+  categoryId: z.string().min(1).nullable().optional(),
+  payee: z.string().trim().max(200).nullable().optional(),
+  note: z.string().trim().max(1000).nullable().optional(),
 });
 
 export const updateTransactionSchema = z.object({
   type: z.enum(['income', 'expense']).optional(),
   amount: z.number().positive().optional(),
   occurredOn: z.string().date().optional(),
-  categoryId: z.string().optional(),
-  payee: z.string().trim().max(200).optional(),
-  note: z.string().trim().max(1000).optional(),
+  categoryId: z.string().min(1).nullable().optional(),
+  payee: z.string().trim().max(200).nullable().optional(),
+  note: z.string().trim().max(1000).nullable().optional(),
 });
 
 export const listTransactionsQuerySchema = paginationQuerySchema.merge(

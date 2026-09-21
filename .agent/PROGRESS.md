@@ -59,9 +59,27 @@
       `viewport-fit=cover`, safe-area padding, 16px inputs (iOS zoom fix).
 - [x] `npm run build` + `npm run lint` green.
 
-## Stage 4 — infra cleanup (INFRA-*) — NOT STARTED
+## Stage 4 — infra cleanup (INFRA-*) — DONE
 
-## Stage 5 — tests + docs (TEST-*, DOC-*) — NOT STARTED
+- [x] Removed `r2_buckets` + `queues` from `wrangler.jsonc` (kept D1, vars,
+      `send_email`, observability).
+- [x] Removed `@llamaindex/llama-cloud` from `package.json` (pruned `yarn.lock`).
+- [x] Removed `LLAMA_CLOUD_API_KEY` from `.env.example`.
+- [x] `yarn typecheck` + `yarn test` + `yarn lint` green; grep confirms no
+      llama/R2/queue refs outside docs/diagrams.
+
+## Stage 5 — tests + docs (TEST-*, DOC-*) — DONE
+
+- [x] `api.test.ts` rewritten — health/root smoke + 401 for all auth-gated routes
+      (`app.request` with `{ app }` named export). 48 vitest tests green.
+- [x] e2e: `auth.setup.ts` seed rewritten to v1 API (`PUT /api/budgets/:month`,
+      `POST /api/transactions`); removed `expenses`/`fixed-expenses`/`goals` specs;
+      added `transactions.spec.ts`; rewrote `budgets`/`dashboard`/`navigation`;
+      kept `profile`/`auth.no-auth`.
+- [x] Docs: superseded banner on `BACKEND_SPEC.md` + `FRONTEND_SPEC.md`;
+      `README.md` rewritten to Hono/Workers/D1.
+- [x] Diagrams: `data-model.mmd` + `data-flow.mmd` regenerated to v1 target;
+      re-exported `data-model.svg` + `data-flow.svg` (Kroki).
 
 ## Decisions (locked)
 
@@ -72,6 +90,5 @@
 
 ## ⚠️ Remaining red/deferred
 
-- Stage 4: `wrangler.jsonc` still declares `r2_buckets` + `queues` (unused since Stage 2);
-  `@llamaindex/llama-cloud` still in `package.json`; `LLAMA_CLOUD_API_KEY` in `.env.example`.
-- Stage 5: `e2e/*.spec.ts` still reference removed endpoints; docs + diagrams stale.
+- (none) — v1 rewrite complete. v1.5 (recurring txns, goals as category targets,
+  rollover) and v2 (imports + AI) deferred per PRD §7.

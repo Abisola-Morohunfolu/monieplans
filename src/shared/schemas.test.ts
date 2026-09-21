@@ -91,6 +91,18 @@ describe('Zod schemas', () => {
         createTransactionSchema.parse({ ...valid, occurredOn: '01-08-2026' }),
       ).toThrow();
     });
+
+    it('accepts null categoryId to leave uncategorized', () => {
+      expect(() =>
+        createTransactionSchema.parse({ ...valid, categoryId: null }),
+      ).not.toThrow();
+    });
+
+    it('rejects empty-string categoryId', () => {
+      expect(() =>
+        createTransactionSchema.parse({ ...valid, categoryId: '' }),
+      ).toThrow();
+    });
   });
 
   describe('updateTransactionSchema', () => {
@@ -102,6 +114,16 @@ describe('Zod schemas', () => {
 
     it('allows empty object', () => {
       expect(() => updateTransactionSchema.parse({})).not.toThrow();
+    });
+
+    it('accepts null categoryId to clear the category', () => {
+      expect(updateTransactionSchema.parse({ categoryId: null })).toEqual({
+        categoryId: null,
+      });
+    });
+
+    it('rejects empty-string categoryId', () => {
+      expect(() => updateTransactionSchema.parse({ categoryId: '' })).toThrow();
     });
   });
 
