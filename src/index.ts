@@ -7,20 +7,10 @@ import { authMiddleware } from './shared/middleware';
 import { usersRouter } from './routes/users';
 import { categoriesRouter } from './routes/categories';
 import { budgetsRouter } from './routes/budgets';
-import { expensesRouter } from './routes/expenses';
-import { fixedExpensesRouter } from './routes/fixed-expenses';
-import { goalsRouter } from './routes/goals';
-import { statementsRouter } from './routes/statements';
-import { analyticsRouter } from './routes/analytics';
-import { incomeRouter } from './routes/income';
-import { processReceiptMessages } from './consumers/receipt-processing';
-import { processStatementMessages } from './consumers/statement-processing';
+import { transactionsRouter } from './routes/transactions';
 
 export interface Env {
   DB: D1Database;
-  R2: R2Bucket;
-  RECEIPT_PROCESSING: Queue;
-  STATEMENT_PROCESSING: Queue;
   BETTER_AUTH_URL?: string;
   BETTER_AUTH_SECRET: string;
   APP_ORIGIN?: string;
@@ -29,7 +19,6 @@ export interface Env {
   GITHUB_CLIENT_ID?: string;
   GITHUB_CLIENT_SECRET?: string;
   RESEND_API_KEY?: string;
-  LLAMA_CLOUD_API_KEY: string;
   LOG_LEVEL?: 'debug' | 'info' | 'warn' | 'error';
   EMAIL?: SendEmail;
   EMAIL_FROM?: string;
@@ -44,7 +33,7 @@ app.use(
     origin: allowedOrigins,
     credentials: true,
     allowHeaders: ['Content-Type', 'Authorization'],
-    allowMethods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowMethods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   }),
 );
 
@@ -62,22 +51,12 @@ app.all('/api/auth/*', async (c) => {
 app.use('/api/users/*', authMiddleware);
 app.use('/api/budgets/*', authMiddleware);
 app.use('/api/categories/*', authMiddleware);
-app.use('/api/expenses/*', authMiddleware);
-app.use('/api/fixed-expenses/*', authMiddleware);
-app.use('/api/goals/*', authMiddleware);
-app.use('/api/statements/*', authMiddleware);
-app.use('/api/analytics/*', authMiddleware);
-app.use('/api/income/*', authMiddleware);
+app.use('/api/transactions/*', authMiddleware);
 
 app.route('/api/users', usersRouter);
 app.route('/api/categories', categoriesRouter);
 app.route('/api/budgets', budgetsRouter);
-app.route('/api/expenses', expensesRouter);
-app.route('/api/fixed-expenses', fixedExpensesRouter);
-app.route('/api/goals', goalsRouter);
-app.route('/api/statements', statementsRouter);
-app.route('/api/analytics', analyticsRouter);
-app.route('/api/income', incomeRouter);
+app.route('/api/transactions', transactionsRouter);
 
 app.onError((err, c) => {
   if (err instanceof HTTPException) {
@@ -101,32 +80,6 @@ app.get('/api/health', (c) => c.json({ status: 'ok' }));
 
 app.get('/', (c) => c.json({ name: 'monieplans-api', version: '0.1.0' }));
 
-async function queue(batch: MessageBatch<unknown>, env: Env): Promise<void> {
-  switch (batch.queue) {
-    case 'receipt-processing':
-      return processReceiptMessages(
-        batch as unknown as MessageBatch<{
-          receiptId: string;
-          userId: string;
-          fileName: string;
-          storagePath: string;
-        }>,
-        env,
-      );
-    case 'statement-processing':
-      return processStatementMessages(
-        batch as unknown as MessageBatch<{
-          uploadId: string;
-          userId: string;
-          budgetPeriodId: string;
-          fileName: string;
-          storagePath: string;
-        }>,
-        env,
-      );
-  }
-}
-
-export default { fetch: app.fetch, queue };
+export default { fetch: app.fetch };
 
 export { app };

@@ -21,5 +21,7 @@ export const categoryBudgets = sqliteTable(
       .notNull()
       .default(sql`CURRENT_TIMESTAMP`),
   },
-  (t) => [unique('uq_category_budgets_budget_category').on(t.budgetId, t.categoryId)],
+  (t) => [
+    unique('uq_category_budgets_budget_category').on(t.budgetId, t.categoryId),
+  ],
 );

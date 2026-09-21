@@ -1,13 +1,5 @@
 import { z } from 'zod';
 
-const budgetCycleType = z.enum([
-  'calendar_month',
-  'custom_30_day',
-  'custom_31_day',
-]);
-const planningMode = z.enum(['income_based', 'spending_cap_based']);
-const weekStartDay = z.enum(['monday', 'sunday', 'saturday']);
-
 export const paginationQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(100).optional(),
   offset: z.coerce.number().int().min(0).optional(),
@@ -17,174 +9,68 @@ export const searchQuerySchema = z.object({
   search: z.string().optional(),
 });
 
-export const createBudgetSchema = z.object({
-  periodStartDate: z.string().date(),
-  periodEndDate: z.string().date(),
-  cycleType: budgetCycleType.optional().default('calendar_month'),
-  presetMonth: z.string().optional(),
-  planningMode: planningMode.default('income_based'),
-  monthlyIncomeAmount: z.number().min(0).optional(),
-  monthlyBudgetCapAmount: z.number().min(0).optional(),
-  currency: z.string().min(1).default('NGN'),
-  notes: z.string().optional(),
-  activateImmediately: z.boolean().optional(),
+export const monthParamSchema = z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/, {
+  message: 'Month must be in YYYY-MM format',
 });
 
-export const createExpenseSchema = z.object({
-  amount: z.number().positive(),
-  expenseDate: z.string(),
-  categoryId: z.string().optional(),
-  description: z.string().optional(),
-  merchantName: z.string().optional(),
-  receiptId: z.string().optional(),
-});
-
-export const updateExpenseSchema = z.object({
-  amount: z.number().min(0).optional(),
-  expenseDate: z.string().optional(),
-  categoryId: z.string().optional(),
-  description: z.string().optional(),
-  merchantName: z.string().optional(),
-});
-
-export const listExpensesQuerySchema = paginationQuerySchema.merge(
-  z.object({
-    budgetPeriodId: z.string().optional(),
-    weeklyBudgetAllocationId: z.string().optional(),
-    categoryId: z.string().optional(),
-    startDate: z.string().optional(),
-    endDate: z.string().optional(),
-    sourceType: z.enum(['manual', 'receipt_upload']).optional(),
-    search: z.string().optional(),
-  }),
-);
-
-export const createGoalSchema = z.object({
-  name: z.string().min(1),
-  targetAmount: z.number().min(0),
-  targetDate: z.string().optional(),
-  priorityRank: z.number().int().min(0).max(100).optional().default(0),
-  reserveInBudget: z.boolean().optional(),
-  notes: z.string().optional(),
-});
-
-export const updateGoalSchema = z.object({
-  name: z.string().min(1).optional(),
-  targetAmount: z.number().min(0).optional(),
-  targetDate: z.string().optional(),
-  priorityRank: z.number().int().min(0).max(100).optional(),
-  reserveInBudget: z.boolean().optional(),
-  notes: z.string().optional(),
-  status: z.enum(['active', 'paused', 'completed', 'archived']).optional(),
+export const createCategorySchema = z.object({
+  name: z.string().trim().min(1).max(100),
+  groupName: z.string().trim().max(100).optional(),
+  kind: z.enum(['income', 'expense']).default('expense'),
 });
 
 export const updateProfileSchema = z.object({
-  name: z.string().optional(),
   fullName: z.string().optional(),
-  preferredCurrency: z.string().optional(),
-  timezone: z.string().optional(),
-  budgetCycleAnchorDay: z.number().int().min(1).max(31).optional(),
-  defaultBudgetCycleType: budgetCycleType.optional(),
-  weekStartDay: weekStartDay.optional(),
+  preferredCurrency: z.string().min(1).max(8).optional(),
+  timezone: z.string().max(64).optional(),
 });
 
-export const createFixedExpenseTemplateSchema = z.object({
-  name: z.string().min(1),
+export const createTransactionSchema = z.object({
+  type: z.enum(['income', 'expense']),
+  amount: z.number().positive(),
+  occurredOn: z.string().date(),
   categoryId: z.string().optional(),
-  amount: z.number().min(0),
-  cadence: z.enum(['every_period']).optional().default('every_period'),
-  defaultDueDay: z.number().int().min(1).max(31).optional(),
-  isActive: z.boolean().optional(),
-  isMandatory: z.boolean().optional(),
-  isProtectedFromCutRecommendations: z.boolean().optional(),
-  notes: z.string().optional(),
+  payee: z.string().trim().max(200).optional(),
+  note: z.string().trim().max(1000).optional(),
 });
 
-export const updateFixedExpenseTemplateSchema =
-  createFixedExpenseTemplateSchema.partial();
-
-export const uploadStatementQuerySchema = z.object({
-  budgetPeriodId: z.string().optional(),
-});
-
-export const reserveGoalSchema = z.object({
-  reservations: z.array(
-    z.object({
-      goalId: z.string(),
-      reservedAmount: z.number().min(0),
-    }),
-  ),
-});
-
-export const updateRecommendationStatusSchema = z.object({
-  status: z.enum(['dismissed', 'accepted']),
-});
-
-export const generateInsightsSchema = z.object({
-  budgetPeriodId: z.string(),
-});
-
-export const createIncomeSchema = z.object({
-  amount: z.number().min(0),
-  incomeDate: z.string(),
-  budgetPeriodId: z.string().optional(),
+export const updateTransactionSchema = z.object({
+  type: z.enum(['income', 'expense']).optional(),
+  amount: z.number().positive().optional(),
+  occurredOn: z.string().date().optional(),
   categoryId: z.string().optional(),
-  description: z.string().optional(),
-});
-
-export const updateIncomeSchema = z.object({
-  amount: z.number().min(0).optional(),
-  incomeDate: z.string().optional(),
-  categoryId: z.string().optional(),
-  description: z.string().optional(),
-});
-
-export const listIncomeQuerySchema = paginationQuerySchema.merge(
-  z.object({
-    budgetPeriodId: z.string().optional(),
-    categoryId: z.string().optional(),
-    startDate: z.string().optional(),
-    endDate: z.string().optional(),
-    sourceType: z.enum(['manual', 'statement_import']).optional(),
-    search: z.string().optional(),
-  }),
-);
-
-export const confirmReceiptItemsSchema = z.object({
-  itemIds: z.array(z.string()),
+  payee: z.string().trim().max(200).optional(),
+  note: z.string().trim().max(1000).optional(),
 });
 
 export const listTransactionsQuerySchema = paginationQuerySchema.merge(
   z.object({
-    hideInternal: z.enum(['true', 'false']).optional(),
-    transactionType: z.string().optional(),
+    month: monthParamSchema.optional(),
+    categoryId: z.string().optional(),
+    type: z.enum(['income', 'expense']).optional(),
+    search: z.string().optional(),
   }),
 );
+
+export const setAssignmentsSchema = z.object({
+  assignments: z
+    .array(
+      z.object({
+        categoryId: z.string().min(1),
+        assigned: z.number().min(0),
+      }),
+    )
+    .max(500),
+});
 
 export const listCategoriesQuerySchema =
   paginationQuerySchema.merge(searchQuerySchema);
 
-export const updateTransactionCategorySchema = z.object({
-  categoryId: z.string().nullable(),
-});
-
-export type CreateBudgetInput = z.infer<typeof createBudgetSchema>;
-export type CreateExpenseInput = z.infer<typeof createExpenseSchema>;
-export type UpdateExpenseInput = z.infer<typeof updateExpenseSchema>;
-export type ListExpensesQuery = z.infer<typeof listExpensesQuerySchema>;
-export type CreateGoalInput = z.infer<typeof createGoalSchema>;
-export type UpdateGoalInput = z.infer<typeof updateGoalSchema>;
+export type CreateCategoryInput = z.infer<typeof createCategorySchema>;
 export type UpdateProfileInput = z.infer<typeof updateProfileSchema>;
-export type CreateFixedExpenseTemplateInput = z.infer<
-  typeof createFixedExpenseTemplateSchema
->;
-export type UpdateFixedExpenseTemplateInput = z.infer<
-  typeof updateFixedExpenseTemplateSchema
->;
-export type ReserveGoalInput = z.infer<typeof reserveGoalSchema>;
-export type CreateIncomeInput = z.infer<typeof createIncomeSchema>;
-export type UpdateIncomeInput = z.infer<typeof updateIncomeSchema>;
-export type ListIncomeQuery = z.infer<typeof listIncomeQuerySchema>;
+export type CreateTransactionInput = z.infer<typeof createTransactionSchema>;
+export type UpdateTransactionInput = z.infer<typeof updateTransactionSchema>;
 export type ListTransactionsQuery = z.infer<typeof listTransactionsQuerySchema>;
+export type SetAssignmentsInput = z.infer<typeof setAssignmentsSchema>;
 export type ListCategoriesQuery = z.infer<typeof listCategoriesQuerySchema>;
 export type PaginationQuery = z.infer<typeof paginationQuerySchema>;

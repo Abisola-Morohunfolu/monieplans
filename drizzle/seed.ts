@@ -1,5 +1,4 @@
 import { drizzle } from 'drizzle-orm/d1';
-import { sql } from 'drizzle-orm';
 import * as schema from '../src/database/schema';
 import crypto from 'node:crypto';
 
@@ -16,9 +15,11 @@ const systemCategories = [
   { code: 'health', name: 'Health & Wellness', groupName: 'Living', kind: 'expense' },
   { code: 'entertainment', name: 'Entertainment', groupName: 'Lifestyle', kind: 'expense' },
   { code: 'education', name: 'Education', groupName: 'Growth', kind: 'expense' },
-  { code: 'savings', name: 'Savings', groupName: 'Goals', kind: 'savings' },
-  { code: 'transfer', name: 'Transfer', groupName: 'Other', kind: 'transfer' },
+  { code: 'savings', name: 'Savings', groupName: 'Goals', kind: 'expense' },
+  { code: 'transfer', name: 'Transfer', groupName: 'Other', kind: 'expense' },
   { code: 'uncategorized', name: 'Uncategorized', groupName: 'Other', kind: 'expense' },
+  { code: 'salary', name: 'Salary', groupName: 'Income', kind: 'income' },
+  { code: 'other_income', name: 'Other Income', groupName: 'Income', kind: 'income' },
 ];
 
 export async function seed(db: ReturnType<typeof drizzle>) {

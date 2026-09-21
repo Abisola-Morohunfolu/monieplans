@@ -1,11 +1,29 @@
 import { Hono } from 'hono';
-import { generateId, nowISO, toCents, fromCents } from '../shared/utils';
+import type { InferSelectModel } from 'drizzle-orm';
+import { generateId, nowISO } from '../shared/utils';
 import { updateProfileSchema } from '../shared/schemas';
 import { validateJson } from '../shared/validate';
 import { eq } from 'drizzle-orm';
 import * as schema from '../database/schema';
 
 export const usersRouter = new Hono();
+
+function profilePayload(
+  profile: InferSelectModel<typeof schema.userProfiles>,
+  user: { id: string; email: string; name: string },
+) {
+  return {
+    userId: user.id,
+    email: user.email,
+    name: user.name,
+    profileId: profile.id,
+    fullName: profile.fullName,
+    preferredCurrency: profile.preferredCurrency,
+    timezone: profile.timezone,
+    createdAt: profile.createdAt,
+    updatedAt: profile.updatedAt,
+  };
+}
 
 usersRouter.get('/me', async (c) => {
   const user = c.get('user');
@@ -32,29 +50,19 @@ usersRouter.get('/me/profile', async (c) => {
 
   if (!profile) {
     const now = nowISO();
-    const pid = generateId();
     const [created] = await db
       .insert(schema.userProfiles)
-      .values({ id: pid, userId: user.id, createdAt: now, updatedAt: now })
+      .values({
+        id: generateId(),
+        userId: user.id,
+        createdAt: now,
+        updatedAt: now,
+      })
       .returning();
-    const { id: _createdId, userId: _createdUserId, ...createdRest } = created;
-    return c.json({
-      userId: user.id,
-      email: user.email,
-      name: user.name,
-      profileId: created.id,
-      ...createdRest,
-    });
+    return c.json(profilePayload(created, user));
   }
 
-  const { id: _profileId, userId: _profileUserId, ...profileRest } = profile;
-  return c.json({
-    userId: user.id,
-    email: user.email,
-    name: user.name,
-    profileId: profile.id,
-    ...profileRest,
-  });
+  return c.json(profilePayload(profile, user));
 });
 
 usersRouter.patch(
@@ -67,44 +75,41 @@ usersRouter.patch(
       typeof updateProfileSchema.parse
     >;
     const now = nowISO();
-    const fullName = body.fullName ?? body.name;
 
-    if (body.name !== undefined) {
+    if (body.fullName !== undefined) {
       await db
         .update(schema.user)
-        .set({ name: body.name })
+        .set({ name: body.fullName })
         .where(eq(schema.user.id, user.id));
     }
 
-    const values = {
-      userId: user.id,
-      fullName,
-      preferredCurrency: body.preferredCurrency,
-      timezone: body.timezone,
-      budgetCycleAnchorDay: body.budgetCycleAnchorDay,
-      defaultBudgetCycleType: body.defaultBudgetCycleType,
-      weekStartDay: body.weekStartDay,
-    };
-
-    const setValues = {
-      fullName,
-      preferredCurrency: body.preferredCurrency,
-      timezone: body.timezone,
-      budgetCycleAnchorDay: body.budgetCycleAnchorDay,
-      defaultBudgetCycleType: body.defaultBudgetCycleType,
-      weekStartDay: body.weekStartDay,
-      updatedAt: now,
-    };
+    const updateFields: {
+      fullName?: string;
+      preferredCurrency?: string;
+      timezone?: string;
+    } = {};
+    if (body.fullName !== undefined) updateFields.fullName = body.fullName;
+    if (body.preferredCurrency !== undefined)
+      updateFields.preferredCurrency = body.preferredCurrency;
+    if (body.timezone !== undefined) updateFields.timezone = body.timezone;
 
     const [profile] = await db
       .insert(schema.userProfiles)
-      .values({ id: generateId(), ...values, createdAt: now, updatedAt: now })
+      .values({
+        id: generateId(),
+        userId: user.id,
+        ...updateFields,
+        createdAt: now,
+        updatedAt: now,
+      })
       .onConflictDoUpdate({
         target: schema.userProfiles.userId,
-        set: setValues,
+        set: { ...updateFields, updatedAt: now },
       })
       .returning();
 
-    return c.json(profile);
+    return c.json(
+      profilePayload(profile, { ...user, name: body.fullName ?? user.name }),
+    );
   },
 );

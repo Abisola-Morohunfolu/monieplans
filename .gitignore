@@ -27,3 +27,10 @@ coverage/
 .dev.vars
 .env
 frontend/.env
+
+# Local artifacts / IDE / generated docs
+.idea/
+uploads/
+diagrams/
+session-ses_*.md
+*.pdf
