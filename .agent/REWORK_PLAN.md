@@ -75,6 +75,17 @@ read (no caches). Imports/AI/goals/recurring deferred.
 | FE-12 | Simplify profile page | `frontend/src/routes/_authenticated/profile/index.tsx` |
 | FE-13 | Update nav/layout links | `frontend/src/components/layout/AppLayout.tsx` |
 
+## FE-MOBILE — responsive / mobile app
+
+| ID | Change | Files |
+|---|---|---|
+| FE-M-1 | Bottom tab bar (mobile) + left sidebar (desktop) | `AppLayout.tsx` |
+| FE-M-2 | Bottom-sheet modal on mobile | `components/ui/Modal.tsx` |
+| FE-M-3 | `viewport-fit=cover` + safe-area padding | `index.html`, `AppLayout.tsx`, `Modal.tsx` |
+| FE-M-4 | 16px inputs (iOS focus-zoom fix) | `index.css`, `components/ui/Input.tsx` |
+| FE-M-5 | Touch-target pass (icon buttons ≥40px) | `Pagination.tsx`, `CategorySelect.tsx` |
+| FE-M-6 | Landing/auth polish (`SectionHeading`, `StatsStrip` mobile) | `components/landing/*` |
+
 ## INFRA — config / deps
 
 | ID | Change | Files |
@@ -121,3 +132,5 @@ read (no caches). Imports/AI/goals/recurring deferred.
 
 - S1 (this): agreed v1 scope (no accounts, monthly per-category, manual-only). Wrote `PRD.md`. This inventory created.
 - S1 (this): locked the 5 open decisions (fresh DB, staged big-bang, reset rollover, income-as-transaction + hint, grouped categories).
+- S2: Stage 1 (schema + migration) + Stage 2 (backend) landed. `yarn typecheck` green.
+- S3: Stage 3 (frontend) landed — v1 single-ledger UI (single budget page w/ month nav, transactions ledger, slim onboarding/profile), plus mobile bottom-tab shell (FE-M-*). `npm run build` + `npm run lint` green. Stage 4 (infra) + Stage 5 (tests/docs) remain.

@@ -35,7 +35,7 @@ export function VerifyEmailPage() {
         } else {
           toast.success('Email verified!')
           refreshSession()
-          navigate({ to: '/dashboard' })
+          navigate({ to: '/budgets' })
         }
       },
       onError: () => {

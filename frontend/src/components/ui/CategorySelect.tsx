@@ -8,6 +8,7 @@ interface CategorySelectProps {
   onChange: (categoryId: string | null) => void
   placeholder?: string
   compact?: boolean
+  kind?: 'income' | 'expense'
 }
 
 export function CategorySelect({
@@ -15,6 +16,7 @@ export function CategorySelect({
   onChange,
   placeholder = 'Select category',
   compact = false,
+  kind,
 }: CategorySelectProps) {
   const [open, setOpen] = useState(false)
   const [search, setSearch] = useState('')
@@ -22,9 +24,12 @@ export function CategorySelect({
   const [debounced, setDebounced] = useState('')
   const rootRef = useRef<HTMLDivElement>(null)
 
-  const { data } = useCategorySearch(debounced, compact ? 50 : 25)
+  const { data } = useCategorySearch(debounced, 100)
 
-  const options = useMemo<Category[]>(() => data?.data ?? [], [data])
+  const options = useMemo<Category[]>(
+    () => (data?.data ?? []).filter((c) => !kind || c.kind === kind),
+    [data, kind],
+  )
 
   const selected = useMemo(
     () => options.find((c) => c.id === value) ?? null,
@@ -104,7 +109,7 @@ export function CategorySelect({
         {selected && !open ? (
           <button
             onClick={clear}
-            className="p-0.5 text-text-tertiary hover:text-text-primary"
+            className="p-1.5 text-text-tertiary hover:text-text-primary"
             aria-label="Clear category"
           >
             <X className="w-4 h-4" />

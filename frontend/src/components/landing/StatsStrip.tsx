@@ -58,7 +58,7 @@ export default function StatsStrip() {
           </p>
         </div>
 
-        <div className="stats-row grid grid-cols-3 gap-7">
+        <div className="stats-row grid grid-cols-3 max-sm:grid-cols-1 gap-7 max-sm:gap-9">
           <div className="stat reveal border-l border-[rgba(241,239,230,0.12)] pl-7">
             <CountUpStat value={40} suffix="+" />
             <div className="mt-3 text-[13.5px] text-on-dark-muted">

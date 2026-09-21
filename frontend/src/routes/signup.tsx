@@ -35,7 +35,7 @@ function SignupPage() {
   }
 
   if (isAuthenticated) {
-    return <Navigate to="/dashboard" replace />
+    return <Navigate to="/budgets" replace />
   }
 
   const handleSubmit = async (e: FormEvent) => {
@@ -64,7 +64,7 @@ function SignupPage() {
         name,
         email,
         password,
-        callbackURL: `${window.location.origin}/dashboard`,
+        callbackURL: `${window.location.origin}/budgets`,
       })
       if (result.error) {
         toast.error(result.error.message || 'Sign up failed')
@@ -87,7 +87,7 @@ function SignupPage() {
     try {
       await sendVerificationEmail({
         email,
-        callbackURL: `${window.location.origin}/dashboard`,
+        callbackURL: `${window.location.origin}/budgets`,
       })
       toast.success('Verification email resent.')
     } catch {

@@ -27,7 +27,7 @@ export default function SectionHeading({
       >
         {eyebrow}
       </div>
-      <h2 className="mt-[18px] text-5xl">{heading}</h2>
+      <h2 className="mt-[18px] text-4xl sm:text-5xl">{heading}</h2>
       {subtitle && (
         <p
           className={`mt-[18px] ${dark ? 'text-on-dark-muted' : 'text-text-secondary'}`}

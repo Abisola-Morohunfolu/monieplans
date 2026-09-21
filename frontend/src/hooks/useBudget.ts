@@ -1,73 +1,49 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '../lib/api'
 import { queryKeys } from '../lib/queryKeys'
-import type { Budget, BudgetSummary, WeeklyAllocation } from '../types'
+import type {
+  Budget,
+  BudgetSummary,
+  CategoryBudget,
+  SetAssignmentsInput,
+} from '../types'
 
-async function fetchBudget(budgetId: string): Promise<Budget> {
-  const { data } = await api.get(`/api/budgets/${budgetId}`)
+async function upsertBudget(month: string): Promise<Budget & { assignments: CategoryBudget[] }> {
+  const { data } = await api.put(`/api/budgets/${month}`)
   return data
 }
 
-async function fetchBudgetAllocations(budgetId: string): Promise<WeeklyAllocation[]> {
-  const { data } = await api.get(`/api/budgets/${budgetId}/allocations`)
+async function fetchBudgetSummary(month: string): Promise<BudgetSummary> {
+  const { data } = await api.get(`/api/budgets/${month}/summary`)
   return data
 }
 
-async function fetchBudgetSummary(budgetId: string): Promise<BudgetSummary> {
-  const { data } = await api.get(`/api/budgets/${budgetId}/summary`)
-  return data
-}
-
-export function useBudget(budgetId: string) {
+export function useBudget(month: string) {
   return useQuery({
-    queryKey: queryKeys.budgets.detail(budgetId),
-    queryFn: () => fetchBudget(budgetId),
-    enabled: !!budgetId,
+    queryKey: queryKeys.budgets.month(month),
+    queryFn: () => upsertBudget(month),
+    enabled: !!month,
   })
 }
 
-export function useBudgetAllocations(budgetId: string) {
+export function useBudgetSummary(month: string, enabled = true) {
   return useQuery({
-    queryKey: queryKeys.budgets.allocations(budgetId),
-    queryFn: () => fetchBudgetAllocations(budgetId),
-    enabled: !!budgetId,
+    queryKey: queryKeys.budgets.summary(month),
+    queryFn: () => fetchBudgetSummary(month),
+    enabled: !!month && enabled,
   })
 }
 
-export function useBudgetSummary(budgetId: string) {
-  return useQuery({
-    queryKey: queryKeys.budgets.summary(budgetId),
-    queryFn: () => fetchBudgetSummary(budgetId),
-    enabled: !!budgetId,
-  })
-}
-
-export function useActivateBudget(budgetId: string) {
+export function useSetAssignments(month: string) {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: () => api.post(`/api/budgets/${budgetId}/activate`),
-    meta: { successMessage: 'Budget activated' },
+    mutationFn: (data: SetAssignmentsInput) =>
+      api.put(`/api/budgets/${month}/assignments`, data),
+    meta: { successMessage: 'Budget updated' },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.budgets.detail(budgetId) })
-      queryClient.invalidateQueries({ queryKey: ['budgets'] })
-      queryClient.invalidateQueries({ queryKey: queryKeys.budgets.active })
-      queryClient.invalidateQueries({ queryKey: queryKeys.budgets.allocations(budgetId) })
-      queryClient.invalidateQueries({ queryKey: queryKeys.budgets.summary(budgetId) })
-      queryClient.invalidateQueries({ queryKey: queryKeys.fixedExpenses.items(budgetId) })
-    },
-  })
-}
-
-export function useLockBudget(budgetId: string) {
-  const queryClient = useQueryClient()
-
-  return useMutation({
-    mutationFn: () => api.post(`/api/budgets/${budgetId}/lock`),
-    meta: { successMessage: 'Budget locked' },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.budgets.detail(budgetId) })
-      queryClient.invalidateQueries({ queryKey: ['budgets'] })
+      queryClient.invalidateQueries({ queryKey: queryKeys.budgets.month(month) })
+      queryClient.invalidateQueries({ queryKey: queryKeys.budgets.summary(month) })
     },
   })
 }
