@@ -18,6 +18,8 @@ import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as SignupRouteImport } from './routes/signup'
 import { Route as VerifyEmailRouteImport } from './routes/verify-email'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
+import { Route as AuthenticatedReviewRouteImport } from './routes/_authenticated/review'
+import { Route as AuthenticatedBucketsBucketIdRouteImport } from './routes/_authenticated/buckets/$bucketId'
 import { Route as AuthenticatedBudgetsIndexRouteImport } from './routes/_authenticated/budgets/index'
 import { Route as AuthenticatedProfileIndexRouteImport } from './routes/_authenticated/profile/index'
 import { Route as AuthenticatedTransactionsIndexRouteImport } from './routes/_authenticated/transactions/index'
@@ -66,6 +68,17 @@ const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
   path: '/dashboard',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
+const AuthenticatedReviewRoute = AuthenticatedReviewRouteImport.update({
+  id: '/review',
+  path: '/review',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
+const AuthenticatedBucketsBucketIdRoute =
+  AuthenticatedBucketsBucketIdRouteImport.update({
+    id: '/buckets/$bucketId',
+    path: '/buckets/$bucketId',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
 const AuthenticatedBudgetsIndexRoute =
   AuthenticatedBudgetsIndexRouteImport.update({
     id: '/budgets/',
@@ -94,6 +107,8 @@ export interface FileRoutesByFullPath {
   '/signup': typeof SignupRoute
   '/verify-email': typeof VerifyEmailRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
+  '/review': typeof AuthenticatedReviewRoute
+  '/buckets/$bucketId': typeof AuthenticatedBucketsBucketIdRoute
   '/budgets/': typeof AuthenticatedBudgetsIndexRoute
   '/profile/': typeof AuthenticatedProfileIndexRoute
   '/transactions/': typeof AuthenticatedTransactionsIndexRoute
@@ -107,6 +122,8 @@ export interface FileRoutesByTo {
   '/signup': typeof SignupRoute
   '/verify-email': typeof VerifyEmailRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
+  '/review': typeof AuthenticatedReviewRoute
+  '/buckets/$bucketId': typeof AuthenticatedBucketsBucketIdRoute
   '/budgets': typeof AuthenticatedBudgetsIndexRoute
   '/profile': typeof AuthenticatedProfileIndexRoute
   '/transactions': typeof AuthenticatedTransactionsIndexRoute
@@ -122,6 +139,8 @@ export interface FileRoutesById {
   '/signup': typeof SignupRoute
   '/verify-email': typeof VerifyEmailRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
+  '/_authenticated/review': typeof AuthenticatedReviewRoute
+  '/_authenticated/buckets/$bucketId': typeof AuthenticatedBucketsBucketIdRoute
   '/_authenticated/budgets/': typeof AuthenticatedBudgetsIndexRoute
   '/_authenticated/profile/': typeof AuthenticatedProfileIndexRoute
   '/_authenticated/transactions/': typeof AuthenticatedTransactionsIndexRoute
@@ -137,6 +156,8 @@ export interface FileRouteTypes {
     | '/signup'
     | '/verify-email'
     | '/dashboard'
+    | '/review'
+    | '/buckets/$bucketId'
     | '/budgets/'
     | '/profile/'
     | '/transactions/'
@@ -150,6 +171,8 @@ export interface FileRouteTypes {
     | '/signup'
     | '/verify-email'
     | '/dashboard'
+    | '/review'
+    | '/buckets/$bucketId'
     | '/budgets'
     | '/profile'
     | '/transactions'
@@ -164,6 +187,8 @@ export interface FileRouteTypes {
     | '/signup'
     | '/verify-email'
     | '/_authenticated/dashboard'
+    | '/_authenticated/review'
+    | '/_authenticated/buckets/$bucketId'
     | '/_authenticated/budgets/'
     | '/_authenticated/profile/'
     | '/_authenticated/transactions/'
@@ -245,6 +270,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedDashboardRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/review': {
+      id: '/_authenticated/review'
+      path: '/review'
+      fullPath: '/review'
+      preLoaderRoute: typeof AuthenticatedReviewRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/buckets/$bucketId': {
+      id: '/_authenticated/buckets/$bucketId'
+      path: '/buckets/$bucketId'
+      fullPath: '/buckets/$bucketId'
+      preLoaderRoute: typeof AuthenticatedBucketsBucketIdRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/budgets/': {
       id: '/_authenticated/budgets/'
       path: '/budgets'
@@ -271,6 +310,8 @@ declare module '@tanstack/react-router' {
 
 interface AuthenticatedRouteChildren {
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
+  AuthenticatedReviewRoute: typeof AuthenticatedReviewRoute
+  AuthenticatedBucketsBucketIdRoute: typeof AuthenticatedBucketsBucketIdRoute
   AuthenticatedBudgetsIndexRoute: typeof AuthenticatedBudgetsIndexRoute
   AuthenticatedProfileIndexRoute: typeof AuthenticatedProfileIndexRoute
   AuthenticatedTransactionsIndexRoute: typeof AuthenticatedTransactionsIndexRoute
@@ -278,6 +319,8 @@ interface AuthenticatedRouteChildren {
 
 const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
+  AuthenticatedReviewRoute: AuthenticatedReviewRoute,
+  AuthenticatedBucketsBucketIdRoute: AuthenticatedBucketsBucketIdRoute,
   AuthenticatedBudgetsIndexRoute: AuthenticatedBudgetsIndexRoute,
   AuthenticatedProfileIndexRoute: AuthenticatedProfileIndexRoute,
   AuthenticatedTransactionsIndexRoute: AuthenticatedTransactionsIndexRoute,

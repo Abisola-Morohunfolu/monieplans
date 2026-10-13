@@ -1,21 +1,20 @@
-import { useQuery } from '@tanstack/react-query'
-import { api } from '../lib/api'
-import { queryKeys } from '../lib/queryKeys'
-
-interface MeResponse {
-  preferredCurrency?: string
+import { useQuery } from '@tanstack/react-query';
+import { api } from '../lib/api';
+import { queryKeys } from '../lib/queryKeys';
+interface Preferences {
+  preferredCurrency: string;
+  timezone: string;
 }
-
-async function fetchPreferredCurrency(): Promise<string> {
-  const { data } = await api.get<MeResponse>('/api/users/me')
-  return data.preferredCurrency ?? 'NGN'
-}
-
-export function usePreferredCurrency(): string {
-  const { data } = useQuery({
+function usePreferences() {
+  return useQuery<Preferences>({
     queryKey: queryKeys.user.me,
-    queryFn: fetchPreferredCurrency,
+    queryFn: async () => (await api.get('/api/users/me')).data,
     staleTime: Infinity,
-  })
-  return data ?? 'NGN'
+  });
+}
+export function usePreferredCurrency() {
+  return usePreferences().data?.preferredCurrency ?? 'NGN';
+}
+export function usePreferredTimezone() {
+  return usePreferences().data?.timezone ?? 'Africa/Lagos';
 }

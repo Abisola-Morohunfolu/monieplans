@@ -1,19 +1,53 @@
-import type { ReactNode } from 'react'
-
-interface FormFieldProps {
-  label: string
-  children: ReactNode
-  hint?: string
-}
-
-export function FormField({ label, children, hint }: FormFieldProps) {
+import {
+  cloneElement,
+  isValidElement,
+  useId,
+  type ReactElement,
+  type ReactNode,
+} from 'react';
+export function FormField({
+  label,
+  children,
+  hint,
+}: {
+  label: string;
+  children: ReactNode;
+  hint?: string;
+}) {
+  const generated = useId(),
+    child = isValidElement<{ id?: string; 'aria-describedby'?: string }>(
+      children,
+    )
+      ? children
+      : null,
+    id = child?.props.id ?? generated;
   return (
     <div>
-      <label className="block mb-1.5 text-xs font-medium tracking-[0.01em] text-text-secondary">
+      <label
+        htmlFor={id}
+        className="block mb-1.5 text-sm font-medium text-text-secondary"
+      >
         {label}
       </label>
-      {children}
-      {hint && <p className="mt-1 text-xs text-text-tertiary">{hint}</p>}
+      {child
+        ? cloneElement(
+            child as ReactElement<{ id?: string; 'aria-describedby'?: string }>,
+            {
+              id,
+              'aria-describedby': hint
+                ? `${generated}-hint`
+                : child.props['aria-describedby'],
+            },
+          )
+        : children}
+      {hint && (
+        <p
+          id={`${generated}-hint`}
+          className="mt-1 text-sm text-text-secondary"
+        >
+          {hint}
+        </p>
+      )}
     </div>
-  )
+  );
 }

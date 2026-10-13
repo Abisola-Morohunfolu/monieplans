@@ -1,231 +1,422 @@
-import { createFileRoute } from '@tanstack/react-router'
-import { useEffect, useMemo, useRef, useState } from 'react'
-import { ChevronLeft, ChevronRight, Plus, Wallet, TrendingUp, PiggyBank } from 'lucide-react'
-import { useActivateBudget, useBudget, useBudgetSummary, useSetAssignments } from '../../../hooks/useBudget'
-import { usePreferredCurrency } from '../../../hooks/useCurrency'
-import { formatCurrency } from '../../../lib/currency'
-import { addMonths, currentMonth, monthLabel } from '../../../lib/month'
-import { TransactionFormModal } from '../../../components/transactions/TransactionFormModal'
-import type { CategorySummary } from '../../../types'
-
-interface BudgetsSearch {
-  month?: string
-}
-
+import { usePreferredTimezone } from '../../../hooks/useCurrency';
+import { useAuth } from '../../../hooks/useAuth';
+import { createFileRoute, Link } from '@tanstack/react-router';
+import { useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
+import {
+  useBudget,
+  useBudgetSummary,
+  useActivateBudget,
+} from '../../../hooks/useBudget';
+import { api } from '../../../lib/api';
+import { currentMonth, addMonths } from '../../../lib/month';
+import { formatCurrency } from '../../../lib/currency';
+import { getErrorMessage } from '../../../lib/errors';
+import {
+  MonthControl,
+  MoveMoney,
+  BUFFER,
+} from '../../../components/budgets/PlanParts';
+import { Modal } from '../../../components/ui/Modal';
+import { FormField } from '../../../components/ui/FormField';
+import type { BudgetSummary } from '../../../types';
 export const Route = createFileRoute('/_authenticated/budgets/')({
-  validateSearch: (search: Record<string, unknown>): BudgetsSearch => ({
-    month: typeof search.month === 'string' ? search.month : undefined,
+  validateSearch: (s: Record<string, unknown>): { month?: string } => ({
+    month:
+      typeof s.month === 'string' && /^\d{4}-(0[1-9]|1[0-2])$/.test(s.month)
+        ? s.month
+        : undefined,
   }),
-  component: BudgetsPage,
-})
-
-function BudgetsPage() {
-  const { month: monthParam } = Route.useSearch()
-  const navigate = Route.useNavigate()
-  const month = monthParam ?? currentMonth()
-
-  const { data: budget, isLoading: budgetLoading } = useBudget(month)
-  const { data: summary, isLoading } = useBudgetSummary(month, !!budget)
-  const activateBudget = useActivateBudget(month)
-  const setAssignments = useSetAssignments(month)
-  const currency = usePreferredCurrency()
-
-  const activatedRef = useRef<string | null>(null)
-  useEffect(() => {
-    if (budget !== null) return
-    if (activatedRef.current === month) return
-    activatedRef.current = month
-    activateBudget.mutate()
-  }, [budget, month, activateBudget])
-
-  const [draft, setDraft] = useState<Record<string, string>>({})
-  const [txOpen, setTxOpen] = useState(false)
-
-  const dirty = Object.keys(draft).length > 0
-
-  const grouped = useMemo(() => {
-    const map = new Map<string, CategorySummary[]>()
-    for (const c of summary?.categories ?? []) {
-      const group = c.groupName?.trim() || 'Other'
-      const list = map.get(group) ?? []
-      list.push(c)
-      map.set(group, list)
-    }
-    return Array.from(map.entries())
-  }, [summary])
-
-  const goTo = (next: string) => {
-    setDraft({})
-    navigate({ to: '/budgets', search: { month: next } })
-  }
-
-  const setAssigned = (categoryId: string, value: string) => {
-    setDraft((d) => ({ ...d, [categoryId]: value }))
-  }
-
-  const effectiveAssigned = (c: CategorySummary) => {
-    if (draft[c.id] !== undefined) {
-      const n = Number(draft[c.id])
-      return Number.isFinite(n) ? n : 0
-    }
-    return c.assigned
-  }
-
-  const handleSave = async () => {
-    if (!summary) return
-    const assignments = summary.categories.map((c) => ({
-      categoryId: c.id,
-      assigned: effectiveAssigned(c),
-    }))
-    await setAssignments.mutateAsync({ assignments })
-    setDraft({})
-  }
-
-  const totals = summary?.totals
-
+  component: PlanPage,
+});
+type Draft = {
+  limit: string;
+  revision: number;
+  rows: Record<string, { amount: string; pacing: string }>;
+};
+function PlanPage() {
+  const { user } = useAuth();
+  const timezone = usePreferredTimezone();
+  const { month: m } = Route.useSearch(),
+    month = m ?? currentMonth(timezone),
+    navigate = Route.useNavigate(),
+    budget = useBudget(month),
+    summary = useBudgetSummary(month, !!budget.data),
+    create = useActivateBudget(month);
   return (
-    <div className="space-y-6">
-      <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <h2 className="font-heading text-2xl sm:text-3xl font-medium text-text-primary">Budget</h2>
-          <p className="text-text-secondary mt-1">Plan where your money goes this month.</p>
+    <div className="space-y-5">
+      <h1 className="page-title">Your monthly plan</h1>
+      <MonthControl
+        month={month}
+        onChange={(month) => navigate({ search: { month } })}
+      />
+      {budget.isLoading ? (
+        <p>Loading plan…</p>
+      ) : budget.error ? (
+        <p className="error">{getErrorMessage(budget.error)}</p>
+      ) : !budget.data ? (
+        <div className="notice">
+          <p>
+            No plan for this month. Start with a spending limit, then choose
+            your buckets.
+          </p>
+          <button
+            className="btn-primary mt-4"
+            disabled={create.isPending}
+            onClick={() => create.mutate()}
+          >
+            Create monthly plan
+          </button>
+          {create.error && (
+            <p className="error mt-3">{getErrorMessage(create.error)}</p>
+          )}
         </div>
-        <button className="btn-primary" onClick={() => setTxOpen(true)}>
-          <Plus className="w-5 h-5" />
-          Log transaction
-        </button>
-      </header>
-
-      <div className="flex items-center justify-between gap-3">
+      ) : summary.data && user ? (
+        <PlanEditor
+          key={`${user.id}:${month}`}
+          userId={user.id}
+          summary={summary.data}
+        />
+      ) : summary.error ? (
+        <p className="error">{getErrorMessage(summary.error)}</p>
+      ) : (
+        <p>Loading allocations…</p>
+      )}
+    </div>
+  );
+}
+function PlanEditor({
+  summary: s,
+  userId,
+}: {
+  summary: BudgetSummary;
+  userId: string;
+}) {
+  const key = `plan-draft:${userId}:${s.month}`,
+    qc = useQueryClient(),
+    [draft, setDraft] = useState<Draft | null>(() => {
+      try {
+        return JSON.parse(localStorage.getItem(key) || 'null');
+      } catch {
+        return null;
+      }
+    }),
+    [busy, setBusy] = useState(false),
+    [error, setError] = useState(''),
+    [move, setMove] = useState<string | null>(null),
+    [categoryOpen, setCategoryOpen] = useState(false),
+    [categoryName, setCategoryName] = useState('');
+  const base = (): Draft => ({
+    limit: s.spendingLimit === null ? '' : String(s.spendingLimit),
+    revision: s.revision,
+    rows: Object.fromEntries(
+      s.categories.map((c) => [
+        c.id,
+        { amount: String(c.assigned), pacing: c.pacing },
+      ]),
+    ),
+  });
+  const update = (next: Draft) => {
+    setDraft(next);
+    localStorage.setItem(key, JSON.stringify(next));
+  };
+  const editRow = (id: string, patch: Partial<Draft['rows'][string]>) => {
+    const d = draft ?? base();
+    update({ ...d, rows: { ...d.rows, [id]: { ...d.rows[id], ...patch } } });
+  };
+  const d = draft ?? base(),
+    assigned = Object.values(d.rows).reduce(
+      (sum, c) => sum + Number(c.amount || 0),
+      0,
+    ),
+    buffer = Number(d.limit || 0) - assigned;
+  const save = async () => {
+    setBusy(true);
+    setError('');
+    try {
+      await api.put(`/api/budgets/${s.month}/assignments`, {
+        spendingLimit: Number(d.limit),
+        revision: d.revision,
+        assignments: Object.entries(d.rows).map(([categoryId, a]) => ({
+          categoryId,
+          assigned: Number(a.amount || 0),
+          pacing: a.pacing,
+        })),
+      });
+      setDraft(null);
+      localStorage.removeItem(key);
+      qc.invalidateQueries({ queryKey: ['budgets'] });
+      qc.invalidateQueries({ queryKey: ['reviews'] });
+    } catch (e) {
+      setError(getErrorMessage(e));
+      qc.invalidateQueries({ queryKey: ['budgets'] });
+    } finally {
+      setBusy(false);
+    }
+  };
+  const copy = async () => {
+    setBusy(true);
+    setError('');
+    try {
+      const { data: previous } = await api.get<BudgetSummary>(
+        `/api/budgets/${addMonths(s.month, -1)}/summary`,
+      );
+      if (previous.spendingLimit === null)
+        throw new Error('Confirm the previous plan’s limit before copying.');
+      update({
+        limit: String(previous.spendingLimit),
+        revision: s.revision,
+        rows: Object.fromEntries(
+          s.categories.map((c) => {
+            const old = previous.categories.find((a) => a.id === c.id);
+            return [
+              c.id,
+              {
+                amount: String(old?.assigned ?? 0),
+                pacing: old?.pacing ?? 'monthly',
+              },
+            ];
+          }),
+        ),
+      });
+    } catch (e) {
+      setError(getErrorMessage(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <div>
+      {s.excludedCurrencyCount > 0 && (
+        <p className="notice mb-5">
+          {s.excludedCurrencyCount} expenses use a different currency and are
+          excluded from these balances. Review their currency and amounts in
+          Activity.
+        </p>
+      )}
+      {s.spendingLimit === null && (
+        <p className="notice mb-5">
+          Your existing allocations are preserved as monthly caps. Confirm a
+          monthly spending limit to begin weekly pacing.
+        </p>
+      )}
+      {draft && draft.revision !== s.revision && (
+        <div className="notice mb-5">
+          <p>
+            Your spending or allocations changed since this draft. Review the
+            current allocations below, then refresh the draft before saving.
+            Your edits are kept.
+          </p>
+          <button
+            className="btn-secondary mt-3"
+            onClick={() => {
+              update({ ...draft, revision: s.revision });
+              setError('');
+            }}
+          >
+            Refresh draft balances
+          </button>
+        </div>
+      )}
+      <FormField
+        label={`Monthly spending limit (${s.currency})`}
+        hint="Choose a spending limit independently of logged income."
+      >
+        <input
+          className="field amount"
+          type="number"
+          min="0"
+          step="0.01"
+          inputMode="decimal"
+          value={d.limit}
+          onChange={(e) => update({ ...d, limit: e.target.value })}
+        />
+      </FormField>
+      <div className="flex flex-wrap gap-x-8 gap-y-3 py-5 border-b border-text-primary/15">
+        <p className="text-sm">
+          Allocated{' '}
+          <strong className="block text-lg amount">
+            {formatCurrency(assigned, s.currency)}
+          </strong>
+        </p>
+        <div className="flex-1">
+          <p className="text-sm">
+            <Link
+              to="/buckets/$bucketId"
+              params={{ bucketId: BUFFER }}
+              search={{ month: s.month }}
+            >
+              Buffer
+            </Link>{' '}
+            <strong
+              className={`block text-lg amount ${buffer < 0 ? 'text-rust' : ''}`}
+            >
+              {formatCurrency(buffer, s.currency)}
+            </strong>
+          </p>
+        </div>
         <button
-          onClick={() => goTo(addMonths(month, -1))}
-          className="p-2 rounded-xl text-text-secondary hover:bg-text-primary/5 transition-colors"
-          aria-label="Previous month"
+          className="btn-secondary"
+          disabled={!!draft || s.spendingLimit === null}
+          onClick={() => setMove(BUFFER)}
         >
-          <ChevronLeft className="w-5 h-5" />
-        </button>
-        <h3 className="font-heading text-lg font-semibold text-text-primary">{monthLabel(month)}</h3>
-        <button
-          onClick={() => goTo(addMonths(month, 1))}
-          className="p-2 rounded-xl text-text-secondary hover:bg-text-primary/5 transition-colors"
-          aria-label="Next month"
-        >
-          <ChevronRight className="w-5 h-5" />
+          Move money
         </button>
       </div>
-
-      {isLoading || budgetLoading ? (
-        <div className="card flex items-center justify-center h-48">
-          <p className="text-text-secondary">Loading budget...</p>
-        </div>
-      ) : (
-        <>
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            <div className="card !p-4">
-              <div className="flex items-center gap-2 text-text-tertiary mb-1">
-                <Wallet className="w-4 h-4" />
-                <span className="text-xs font-medium">Assigned</span>
-              </div>
-              <p className="font-heading text-2xl font-medium text-text-primary">
-                {formatCurrency(totals?.totalAssigned ?? 0, currency)}
-              </p>
-            </div>
-            <div className="card !p-4">
-              <div className="flex items-center gap-2 text-text-tertiary mb-1">
-                <TrendingUp className="w-4 h-4" />
-                <span className="text-xs font-medium">Income</span>
-              </div>
-              <p className="font-heading text-2xl font-medium text-text-primary">
-                {formatCurrency(totals?.totalIncome ?? 0, currency)}
-              </p>
-            </div>
-            <div className="card !p-4">
-              <div className="flex items-center gap-2 text-text-tertiary mb-1">
-                <span className="text-xs font-medium">Spent</span>
-              </div>
-              <p className="font-heading text-2xl font-medium text-text-primary">
-                {formatCurrency(totals?.totalExpense ?? 0, currency)}
-              </p>
-            </div>
-            <div className="card !p-4">
-              <div className="flex items-center gap-2 text-text-tertiary mb-1">
-                <PiggyBank className="w-4 h-4" />
-                <span className="text-xs font-medium">To assign</span>
-              </div>
-              <p className="font-heading text-2xl font-medium text-text-primary">
-                {formatCurrency(totals?.unassigned ?? 0, currency)}
-              </p>
-            </div>
+      <p className="text-sm text-text-secondary py-4">
+        Monthly-only buckets are reserved before flexible money is paced through
+        the weeks. Weekly allowances carry within this month.
+      </p>
+      <button className="btn-secondary" disabled={busy} onClick={copy}>
+        Copy previous plan
+      </button>
+      <div className="flex items-end justify-between gap-3">
+        <h2 className="section-heading">Category buckets</h2>
+        <button
+          className="btn-secondary"
+          disabled={!!draft}
+          onClick={() => setCategoryOpen(true)}
+        >
+          Add category
+        </button>
+      </div>
+      {s.categories.map((c) => (
+        <div className="bucket-row" key={c.id}>
+          <div className="flex justify-between items-start gap-4">
+            <Link
+              className="font-semibold min-h-11 inline-flex items-center py-2"
+              to="/buckets/$bucketId"
+              params={{ bucketId: c.id }}
+              search={{ month: s.month }}
+            >
+              {c.name}
+            </Link>
+            <p className="text-sm amount text-right">
+              {formatCurrency(c.activity, s.currency)} spent
+              {draft && Number(d.rows[c.id]?.amount ?? 0) !== c.assigned && (
+                <span className="block mt-1">
+                  Current allocation: {formatCurrency(c.assigned, s.currency)}
+                </span>
+              )}
+            </p>
           </div>
-
-          {grouped.length === 0 ? (
-            <div className="card">
-              <p className="text-text-secondary text-sm">
-                No expense categories yet. Log a transaction or add a category to get started.
-              </p>
-            </div>
-          ) : (
-            grouped.map(([group, categories]) => (
-              <div key={group} className="card">
-                <h3 className="font-heading text-lg font-semibold text-text-primary mb-4">{group}</h3>
-                <div className="space-y-2">
-                  {categories.map((c) => {
-                    const assigned = effectiveAssigned(c)
-                    const available = assigned - c.activity
-                    return (
-                      <div
-                        key={c.id}
-                        className="grid grid-cols-[1fr_auto] items-center gap-x-4 gap-y-1 py-2"
-                      >
-                        <div className="min-w-0">
-                          <p className="text-sm font-medium text-text-primary truncate">{c.name}</p>
-                          <p className="text-xs text-text-tertiary">
-                            {formatCurrency(c.activity, currency)} of {formatCurrency(assigned, currency)}
-                          </p>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <input
-                            type="number"
-                            inputMode="decimal"
-                            step="0.01"
-                            value={draft[c.id] ?? String(c.assigned)}
-                            onChange={(e) => setAssigned(c.id, e.target.value)}
-                            className="w-28 py-2 px-3 rounded-xl border border-text-primary/12 bg-bg-lightest/60 text-sm text-right outline-none focus:border-text-primary/20"
-                            aria-label={`Assigned for ${c.name}`}
-                          />
-                        </div>
-                        <div className="col-span-2">
-                          <span
-                            className={`text-xs font-medium ${
-                              available < 0 ? 'text-rust' : 'text-text-secondary'
-                            }`}
-                          >
-                            {formatCurrency(available, currency)} available
-                          </span>
-                        </div>
-                      </div>
-                    )
-                  })}
-                </div>
-              </div>
-            ))
-          )}
-
-          {dirty && (
-            <div className="sticky bottom-24 md:bottom-6 flex justify-end">
-              <button
-                className="btn-primary shadow-lg"
-                onClick={handleSave}
-                disabled={setAssignments.isPending}
+          <div className="grid grid-cols-2 gap-3 mt-2">
+            <FormField label={`${c.name} allocation`}>
+              <input
+                className="field amount"
+                type="number"
+                min="0"
+                step="0.01"
+                inputMode="decimal"
+                value={d.rows[c.id]?.amount ?? '0'}
+                onChange={(e) => editRow(c.id, { amount: e.target.value })}
+              />
+            </FormField>
+            <FormField label={`${c.name} pacing`}>
+              <select
+                className="field"
+                value={d.rows[c.id]?.pacing ?? 'monthly'}
+                onChange={(e) => editRow(c.id, { pacing: e.target.value })}
               >
-                {setAssignments.isPending ? 'Saving...' : 'Save changes'}
-              </button>
-            </div>
-          )}
-        </>
+                <option value="monthly">Monthly only</option>
+                <option value="weekly">Weekly paced</option>
+              </select>
+            </FormField>
+          </div>
+        </div>
+      ))}
+      {error && (
+        <p className="error mt-4" role="alert">
+          {error}
+        </p>
       )}
-
-      <TransactionFormModal open={txOpen} onClose={() => setTxOpen(false)} />
+      {(draft || s.spendingLimit === null) && (
+        <div className="sticky bottom-36 bg-bg-base py-3 border-t border-text-primary/15 flex gap-3 flex-wrap mt-5">
+          <button
+            className="btn-primary"
+            disabled={
+              busy ||
+              d.limit === '' ||
+              buffer < 0 ||
+              (!!draft && draft.revision !== s.revision)
+            }
+            onClick={save}
+          >
+            {busy
+              ? 'Saving…'
+              : s.spendingLimit === null
+                ? 'Confirm limit and save'
+                : 'Save plan'}
+          </button>
+          {draft && (
+            <button
+              className="btn-secondary"
+              onClick={() => {
+                if (
+                  window.confirm('Discard your saved draft for this month?')
+                ) {
+                  setDraft(null);
+                  localStorage.removeItem(key);
+                }
+              }}
+            >
+              Discard draft
+            </button>
+          )}
+          <p className="text-sm text-text-secondary w-full">
+            Draft saved on this device. Changing months keeps your edits.
+          </p>
+        </div>
+      )}
+      <Modal
+        open={categoryOpen}
+        onClose={() => setCategoryOpen(false)}
+        title="Add category"
+      >
+        <form
+          className="space-y-4"
+          onSubmit={async (e) => {
+            e.preventDefault();
+            setBusy(true);
+            setError('');
+            try {
+              await api.post('/api/categories', {
+                name: categoryName,
+                kind: 'expense',
+              });
+              setCategoryOpen(false);
+              setCategoryName('');
+              qc.invalidateQueries({ queryKey: ['categories'] });
+              qc.invalidateQueries({ queryKey: ['budgets'] });
+            } catch (e) {
+              setError(getErrorMessage(e));
+            } finally {
+              setBusy(false);
+            }
+          }}
+        >
+          <FormField label="Category name">
+            <input
+              className="field"
+              required
+              maxLength={100}
+              value={categoryName}
+              onChange={(e) => setCategoryName(e.target.value)}
+            />
+          </FormField>
+          {error && (
+            <p className="error" role="alert">
+              {error}
+            </p>
+          )}
+          <button className="btn-primary" disabled={busy}>
+            Create category
+          </button>
+        </form>
+      </Modal>
+      {move && (
+        <MoveMoney summary={s} sourceId={move} onClose={() => setMove(null)} />
+      )}
     </div>
-  )
+  );
 }

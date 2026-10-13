@@ -14,6 +14,8 @@ export const categoryBudgets = sqliteTable(
       .notNull()
       .references(() => categories.id),
     assignedCents: integer('assigned_cents').notNull(),
+    originalTargetCents: integer('original_target_cents').notNull().default(0),
+    pacing: text('pacing').notNull().default('monthly'),
     createdAt: text('created_at')
       .notNull()
       .default(sql`CURRENT_TIMESTAMP`),

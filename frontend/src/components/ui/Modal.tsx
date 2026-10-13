@@ -1,57 +1,88 @@
-import { useEffect, type ReactNode } from 'react'
-import { X } from 'lucide-react'
-
-interface ModalProps {
-  open: boolean
-  onClose: () => void
-  title?: string
-  children: ReactNode
-  maxWidth?: string
-}
-
-export function Modal({ open, onClose, title, children, maxWidth = 'max-w-lg' }: ModalProps) {
+import { useEffect, useId, useRef, type ReactNode } from 'react';
+import { X } from 'lucide-react';
+export function Modal({
+  open,
+  onClose,
+  title = 'Details',
+  children,
+  maxWidth = 'max-w-lg',
+}: {
+  open: boolean;
+  onClose: () => void;
+  title?: string;
+  children: ReactNode;
+  maxWidth?: string;
+}) {
+  const ref = useRef<HTMLDialogElement>(null),
+    close = useRef(onClose),
+    id = useId();
+  close.current = onClose;
   useEffect(() => {
-    if (!open) return
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose()
-    }
-    window.addEventListener('keydown', onKey)
-    document.body.style.overflow = 'hidden'
+    if (!open || !ref.current) return;
+    const previous = document.activeElement as HTMLElement | null;
+    const previousOverflow = document.body.style.overflow;
+    const dialog = ref.current;
+    dialog.showModal();
+    document.body.style.overflow = 'hidden';
     return () => {
-      window.removeEventListener('keydown', onKey)
-      document.body.style.overflow = ''
-    }
-  }, [open, onClose])
-
-  if (!open) return null
-
+      dialog.close();
+      document.body.style.overflow = previousOverflow;
+      previous?.focus();
+    };
+  }, [open]);
+  if (!open) return null;
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4">
-      <div
-        className="absolute inset-0 bg-text-primary/30 backdrop-blur-sm"
-        onClick={onClose}
-        aria-hidden
-      />
-      <div
-        role="dialog"
-        aria-modal="true"
-        className={`relative w-full ${maxWidth} bg-bg-lightest rounded-t-[26px] sm:rounded-[26px] border border-text-primary/8 shadow-[0_30px_60px_-20px_rgba(23,21,18,0.35)] max-h-[92dvh] overflow-y-auto`}
-        style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
-      >
-        {title && (
-          <div className="flex items-center justify-between px-6 pt-6 pb-2">
-            <h3 className="font-heading text-2xl font-semibold text-text-primary">{title}</h3>
-            <button
-              onClick={onClose}
-              className="p-2 rounded-full text-text-tertiary hover:bg-text-primary/5 hover:text-text-primary transition-colors"
-              aria-label="Close"
-            >
-              <X className="w-5 h-5" />
-            </button>
-          </div>
-        )}
-        <div className="px-6 pb-6">{children}</div>
+    <dialog
+      ref={ref}
+      aria-labelledby={id}
+      onCancel={(e) => {
+        e.preventDefault();
+        close.current();
+      }}
+      onClick={(e) => {
+        const rect = e.currentTarget.getBoundingClientRect();
+        if (
+          e.target === e.currentTarget &&
+          (e.clientX < rect.left ||
+            e.clientX > rect.right ||
+            e.clientY < rect.top ||
+            e.clientY > rect.bottom)
+        )
+          close.current();
+      }}
+      onKeyDown={(e) => {
+        if (e.key !== 'Tab') return;
+        const elements = Array.from(
+          e.currentTarget.querySelectorAll<HTMLElement>(
+            'button:not(:disabled),a[href],input:not(:disabled),select:not(:disabled),textarea:not(:disabled),[tabindex="0"]',
+          ),
+        ).filter((el) => el.getClientRects().length > 0);
+        const first = elements[0],
+          last = elements.at(-1);
+        if (e.shiftKey && document.activeElement === first) {
+          e.preventDefault();
+          last?.focus();
+        } else if (!e.shiftKey && document.activeElement === last) {
+          e.preventDefault();
+          first?.focus();
+        }
+      }}
+      className={`expense-dialog ${maxWidth}`}
+    >
+      <div className="flex items-center justify-between gap-3 mb-5">
+        <h2 id={id} className="text-xl font-semibold">
+          {title}
+        </h2>
+        <button
+          type="button"
+          onClick={() => close.current()}
+          className="icon-button"
+          aria-label="Close"
+        >
+          <X size={20} />
+        </button>
       </div>
-    </div>
-  )
+      {children}
+    </dialog>
+  );
 }

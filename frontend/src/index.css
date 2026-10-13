@@ -7,12 +7,12 @@
   --color-bg-lightest: #FBF9F4;
 
   --color-text-primary: #171512;
-  --color-text-secondary: #6F6B62;
-  --color-text-tertiary: #9A948A;
+  --color-text-secondary: #625E55;
+  --color-text-tertiary: #6B655A;
 
   --color-sage: #8E9C75;
   --color-forest: #3B4B34;
-  --color-rust: #B96A4A;
+  --color-rust: #944626;
 
   --color-dark-1: #151812;
   --color-dark-2: #20251A;
@@ -21,7 +21,7 @@
   --color-on-dark: #F1EFE6;
   --color-on-dark-muted: #A9B39B;
 
-  --font-heading: 'Cormorant Garamond', Georgia, serif;
+  --font-heading: 'Inter', system-ui, sans-serif;
   --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
 }
 
@@ -398,3 +398,43 @@
     transition-duration: 0.01ms !important;
   }
 }
+
+/* Monieplans operating surfaces: warm, flat, legible, and made for thumbs. */
+::selection { background:#d3ddc4; color:#171512; }
+:focus-visible { outline:2px solid #3B4B34; outline-offset:3px; }
+input,select,textarea { caret-color:#3B4B34; }
+input::placeholder,textarea::placeholder { color:#6B655A !important; }
+button,a { -webkit-tap-highlight-color:transparent; }
+button:disabled { opacity:.6;cursor:not-allowed; }
+.amount { font-variant-numeric:tabular-nums; overflow-wrap:anywhere; }
+.card { border-radius:14px;box-shadow:none;transition:none; }
+.card:hover { transform:none;box-shadow:none; }
+.btn-primary,.btn-secondary,.btn-danger { min-height:44px;transition:background-color .15s; }
+.btn-primary:hover,.btn-secondary:hover,.btn-danger:hover,.btn-primary:active,.btn-secondary:active,.btn-danger:active { transform:none;box-shadow:none; }
+.btn-danger { color:#944626; }
+.icon-button { min-width:44px;min-height:44px;display:inline-flex;align-items:center;justify-content:center;border-radius:10px;cursor:pointer; }
+.icon-button:hover { background:#EDE8DD; }
+.field { width:100%;min-height:46px;border:1px solid #8B8577;border-radius:10px;padding:10px 12px;background:#FBF9F4;color:#171512;font:inherit; }
+.expense-dialog { position:fixed;inset:auto 0 0;margin:0 auto;max-height:92dvh;width:100%;padding:20px 20px max(20px,env(safe-area-inset-bottom));background:#FBF9F4;border:0;border-radius:16px 16px 0 0;color:#171512;overflow-y:auto; }
+.expense-dialog::backdrop { background:rgb(23 21 18 / .45); }
+@media(min-width:640px) { .expense-dialog { inset:0;margin:auto;border-radius:16px; } }
+.app-shell { min-height:100dvh; }
+.app-content { max-width:980px;margin:auto;padding:24px 20px 160px; }
+.app-bar { display:flex;align-items:center;justify-content:space-between;padding:10px 20px;border-bottom:1px solid #d3cebf;background:#F2EEE5; }
+.app-nav { position:fixed;bottom:0;left:0;right:0;z-index:30;display:grid;grid-template-columns:repeat(4,1fr);padding-bottom:env(safe-area-inset-bottom);background:#FBF9F4;border-top:1px solid #d3cebf; }
+.app-nav a { min-height:62px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;font-size:12px;color:#625E55; }
+.app-nav a[aria-current=page] { color:#3B4B34;background:#e5e9dc;font-weight:650; }
+.add-expense { position:fixed;right:20px;bottom:calc(78px + env(safe-area-inset-bottom));z-index:35; }
+.bucket-row { border-bottom:1px solid #d3cebf;padding:18px 0; }
+.tx-row { display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;width:100%;text-align:left;align-items:start;padding:18px 0;border-bottom:1px solid #d3cebf;min-height:72px;cursor:pointer; }
+.tx-row .merchant { overflow-wrap:anywhere;font-weight:600; }
+.page-title { font-size:clamp(26px,4vw,32px);font-weight:650;letter-spacing:-.025em; }
+.balance { padding:24px 0;border-bottom:1px solid #d3cebf; }
+.balance .value { font-size:clamp(32px,7vw,48px);font-weight:600;letter-spacing:-.03em;line-height:1.2;margin:8px 0 16px; }
+.section-heading { font-size:18px;font-weight:650;margin-top:30px;margin-bottom:12px; }
+.notice { padding:14px;background:#EDE8DD;border-radius:10px;font-size:14px;line-height:1.5; }
+.error { color:#944626;font-size:14px;line-height:1.5; }
+@media(min-width:768px) { .app-shell { padding-left:210px; } .app-nav { right:auto;top:0;width:210px;display:flex;flex-direction:column;justify-content:center;border-top:0;border-right:1px solid #d3cebf;padding:20px;gap:8px; } .app-nav a { flex-direction:row;justify-content:flex-start;padding:0 12px;font-size:15px;border-radius:10px;min-height:52px;gap:12px; } .add-expense { bottom:24px;right:32px; } .app-content { padding-bottom:110px; } }
+@media(prefers-reduced-motion:reduce) { html {scroll-behavior:auto;} .reveal {opacity:1;transform:none;filter:none;} }
+
+.input-field, .app-shell input:not([type="checkbox"]):not([type="file"]), .app-shell select, .app-shell textarea { min-height:46px; border-color:#8B8577; }

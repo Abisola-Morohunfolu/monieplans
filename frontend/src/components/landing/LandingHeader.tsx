@@ -5,7 +5,6 @@ import { Link } from '@tanstack/react-router';
 const navLinks = [
   { href: '#features', label: 'Features' },
   { href: '#how-it-works', label: 'How it works' },
-  { href: '#pricing', label: 'Pricing' },
   { href: '#faq', label: 'FAQ' },
 ];
 
@@ -33,7 +32,7 @@ export default function LandingHeader() {
         style={{ height: 76 }}
       >
         <a
-          className="brand flex items-center gap-[11px] font-semibold text-[17px] tracking-[-0.01em] text-text-primary hover:no-underline"
+          className="brand flex min-w-11 min-h-11 items-center gap-[11px] font-semibold text-[17px] tracking-[-0.01em] text-text-primary hover:no-underline"
           href="#top"
           aria-label="MoniePlans home"
         >
@@ -107,7 +106,7 @@ export default function LandingHeader() {
         ))}
         <div className="mm-cta mt-5 flex flex-col gap-3">
           <Link className="btn-primary" to="/signup" onClick={closeMobile}>
-            Start budgeting free
+            Start budgeting
           </Link>
           <Link className="btn-ghost" to="/login" onClick={closeMobile}>
             Sign in

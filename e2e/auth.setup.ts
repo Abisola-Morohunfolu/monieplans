@@ -5,7 +5,7 @@ import { join } from 'node:path'
 import type { APIRequestContext } from '@playwright/test'
 
 const API = process.env.E2E_API_URL ?? 'http://localhost:8787'
-const EMAIL = 'e2e@monieplans.dev'
+const EMAIL = `e2e-${Date.now()}@monieplans.dev`
 const PASSWORD = 'e2e-password-123'
 const NAME = 'E2E User'
 
@@ -19,7 +19,7 @@ function findLocalD1Sqlite(): string {
   )
   if (!file) {
     throw new Error(
-      `No local D1 sqlite found under ${dir}. Run \`yarn db:migrate:local\` first.`,
+      `No local D1 sqlite found under ${dir}. See docs/RELEASE.md for safe local database initialization.`,
     )
   }
   return join(dir, file)

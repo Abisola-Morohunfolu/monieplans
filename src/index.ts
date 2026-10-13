@@ -8,9 +8,15 @@ import { usersRouter } from './routes/users';
 import { categoriesRouter } from './routes/categories';
 import { budgetsRouter } from './routes/budgets';
 import { transactionsRouter } from './routes/transactions';
+import { capturesRouter } from './routes/captures';
+import { reviewsRouter } from './routes/reviews';
+import { captureQueue } from './services/capture';
+import type { CaptureJob } from './services/capture';
 
-export interface Env {
-  DB: D1Database;
+export interface Env extends Pick<WorkerBindings, 'DB'> {
+  RECEIPTS?: WorkerBindings['RECEIPTS'];
+  CAPTURE_QUEUE?: Queue<CaptureJob>;
+  AI?: WorkerBindings['AI'];
   BETTER_AUTH_URL?: string;
   BETTER_AUTH_SECRET: string;
   APP_ORIGIN?: string;
@@ -20,7 +26,7 @@ export interface Env {
   GITHUB_CLIENT_SECRET?: string;
   RESEND_API_KEY?: string;
   LOG_LEVEL?: 'debug' | 'info' | 'warn' | 'error';
-  EMAIL?: SendEmail;
+  EMAIL?: WorkerBindings['EMAIL'];
   EMAIL_FROM?: string;
   EMAIL_PROVIDER?: 'cloudflare' | 'resend';
 }
@@ -52,11 +58,15 @@ app.use('/api/users/*', authMiddleware);
 app.use('/api/budgets/*', authMiddleware);
 app.use('/api/categories/*', authMiddleware);
 app.use('/api/transactions/*', authMiddleware);
+app.use('/api/captures/*', authMiddleware);
+app.use('/api/reviews/*', authMiddleware);
 
 app.route('/api/users', usersRouter);
 app.route('/api/categories', categoriesRouter);
 app.route('/api/budgets', budgetsRouter);
 app.route('/api/transactions', transactionsRouter);
+app.route('/api/captures', capturesRouter);
+app.route('/api/reviews', reviewsRouter);
 
 app.onError((err, c) => {
   if (err instanceof HTTPException) {
@@ -80,6 +90,6 @@ app.get('/api/health', (c) => c.json({ status: 'ok' }));
 
 app.get('/', (c) => c.json({ name: 'monieplans-api', version: '0.1.0' }));
 
-export default { fetch: app.fetch };
+export default { fetch: app.fetch, queue: captureQueue };
 
 export { app };
