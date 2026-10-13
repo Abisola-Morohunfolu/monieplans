@@ -82,7 +82,7 @@ describe('Zod schemas', () => {
 
     it('rejects invalid type', () => {
       expect(() =>
-        createTransactionSchema.parse({ ...valid, type: 'transfer' }),
+        createTransactionSchema.parse({ ...valid, type: 'invalid' }),
       ).toThrow();
     });
 

@@ -1,4 +1,4 @@
-import { sqliteTable, text, unique } from 'drizzle-orm/sqlite-core';
+import { integer, sqliteTable, text, unique } from 'drizzle-orm/sqlite-core';
 import { sql } from 'drizzle-orm';
 import { user } from './auth';
 
@@ -11,6 +11,7 @@ export const budgets = sqliteTable(
       .references(() => user.id, { onDelete: 'cascade' }),
     month: text('month').notNull(),
     currency: text('currency').notNull().default('NGN'),
+    spendingLimitCents: integer('spending_limit_cents'),
     status: text('status').notNull().default('draft'),
     createdAt: text('created_at')
       .notNull()

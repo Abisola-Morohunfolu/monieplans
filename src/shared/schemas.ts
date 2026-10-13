@@ -16,18 +16,54 @@ export const monthParamSchema = z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/, {
 export const createCategorySchema = z.object({
   name: z.string().trim().min(1).max(100),
   groupName: z.string().trim().max(100).optional(),
-  kind: z.enum(['income', 'expense']).default('expense'),
+  kind: z.enum(['income', 'expense', 'transfer']).default('expense'),
 });
 
 export const updateProfileSchema = z.object({
   fullName: z.string().optional(),
-  preferredCurrency: z.string().min(1).max(8).optional(),
-  timezone: z.string().max(64).optional(),
+  preferredCurrency: z
+    .string()
+    .regex(/^[A-Z]{3}$/)
+    .optional(),
+  timezone: z
+    .string()
+    .max(64)
+    .refine((value) => {
+      try {
+        new Intl.DateTimeFormat('en', { timeZone: value });
+        return true;
+      } catch {
+        return false;
+      }
+    }, 'Enter a valid timezone, such as Africa/Lagos')
+    .optional(),
+});
+
+export const currencyAmount = z
+  .number()
+  .min(0.01)
+  .max(1e10)
+  .refine(
+    (n) => Math.abs(n * 100 - Math.round(n * 100)) < 0.0001,
+    'Use at most two decimal places',
+  );
+const splitSchema = z.object({
+  categoryId: z.string().min(1).nullable(),
+  amount: currencyAmount,
 });
 
 export const createTransactionSchema = z.object({
-  type: z.enum(['income', 'expense']),
-  amount: z.number().positive(),
+  type: z.enum(['income', 'expense', 'transfer']),
+  amount: currencyAmount,
+  currency: z
+    .string()
+    .regex(/^[A-Z]{3}$/)
+    .optional(),
+  paymentStatus: z
+    .enum(['completed', 'pending', 'failed'])
+    .default('completed'),
+  splits: z.array(splitSchema).max(50).optional(),
+  id: z.string().uuid().optional(),
   occurredOn: z.string().date(),
   categoryId: z.string().min(1).nullable().optional(),
   payee: z.string().trim().max(200).nullable().optional(),
@@ -35,8 +71,14 @@ export const createTransactionSchema = z.object({
 });
 
 export const updateTransactionSchema = z.object({
-  type: z.enum(['income', 'expense']).optional(),
-  amount: z.number().positive().optional(),
+  currency: z
+    .string()
+    .regex(/^[A-Z]{3}$/)
+    .optional(),
+  type: z.enum(['income', 'expense', 'transfer']).optional(),
+  amount: currencyAmount.optional(),
+  paymentStatus: z.enum(['completed', 'pending', 'failed']).optional(),
+  splits: z.array(splitSchema).max(50).optional(),
   occurredOn: z.string().date().optional(),
   categoryId: z.string().min(1).nullable().optional(),
   payee: z.string().trim().max(200).nullable().optional(),
@@ -47,7 +89,7 @@ export const listTransactionsQuerySchema = paginationQuerySchema.merge(
   z.object({
     month: monthParamSchema.optional(),
     categoryId: z.string().optional(),
-    type: z.enum(['income', 'expense']).optional(),
+    type: z.enum(['income', 'expense', 'transfer']).optional(),
     search: z.string().optional(),
   }),
 );

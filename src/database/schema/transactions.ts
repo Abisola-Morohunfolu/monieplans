@@ -17,6 +17,7 @@ export const transactions = sqliteTable(
     categoryId: text('category_id').references(() => categories.id),
     payee: text('payee'),
     note: text('note'),
+    paymentStatus: text('payment_status').notNull().default('completed'),
     source: text('source').notNull().default('manual'),
     createdAt: text('created_at')
       .notNull()

@@ -29,7 +29,10 @@ usersRouter.get('/me', async (c) => {
   const user = c.get('user');
   const db = c.get('db');
   const [profile] = await db
-    .select({ preferredCurrency: schema.userProfiles.preferredCurrency })
+    .select({
+      preferredCurrency: schema.userProfiles.preferredCurrency,
+      timezone: schema.userProfiles.timezone,
+    })
     .from(schema.userProfiles)
     .where(eq(schema.userProfiles.userId, user.id));
   return c.json({
@@ -37,6 +40,7 @@ usersRouter.get('/me', async (c) => {
     email: user.email,
     name: user.name,
     preferredCurrency: profile?.preferredCurrency ?? 'NGN',
+    timezone: profile?.timezone ?? 'Africa/Lagos',
   });
 });
 

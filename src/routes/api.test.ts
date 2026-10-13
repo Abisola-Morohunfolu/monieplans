@@ -35,6 +35,12 @@ describe('API', () => {
     ['GET', '/api/budgets/2026-08/summary'],
     ['GET', '/api/transactions'],
     ['POST', '/api/transactions'],
+    ['POST', '/api/captures'],
+    ['GET', '/api/captures/image-id'],
+    ['GET', '/api/captures/image-id/image'],
+    ['POST', '/api/captures/image-id/confirm'],
+    ['GET', '/api/reviews/2026-10'],
+    ['POST', '/api/reviews/2026-10/generate'],
   ] as const;
 
   it.each(protectedRoutes)(

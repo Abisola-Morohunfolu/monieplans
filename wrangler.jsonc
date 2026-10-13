@@ -15,6 +15,12 @@
       "database_id": "dc613114-1ee8-45b8-8a2f-28efd62480cc"
     }
   ],
+  "r2_buckets": [{ "binding": "RECEIPTS", "bucket_name": "monieplans-receipts" }],
+  "queues": {
+    "producers": [{ "binding": "CAPTURE_QUEUE", "queue": "monieplans-capture" }],
+    "consumers": [{ "queue": "monieplans-capture", "max_batch_size": 1, "max_retries": 4 }]
+  },
+  "ai": { "binding": "AI", "remote": true },
   "send_email": [{ "name": "EMAIL" }],
   "observability": {
     "logs": {
